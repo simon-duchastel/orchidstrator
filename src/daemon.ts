@@ -3,9 +3,6 @@
  *
  * This process runs in the background and manages the OpenCode server.
  * It is spawned by the CLI's `up` command and stopped by the `down` command.
- *
- * Future: This daemon will handle autonomous AI task orchestration,
- * spinning up and down sessions without user input.
  */
 
 import { createOpencode } from "@opencode-ai/sdk";
@@ -48,14 +45,7 @@ async function main() {
     process.on("SIGTERM", () => shutdown("SIGTERM"));
     process.on("SIGINT", () => shutdown("SIGINT"));
 
-    // Keep the process alive
-    // The OpenCode server runs in the background, we just need to not exit
-    console.log("[orchid] Daemon ready. Waiting for commands...");
-
-    // Future: Here we'll add autonomous task orchestration logic
-    // - Monitor for new tasks
-    // - Spin up sessions as needed
-    // - Process results and spin down
+    console.log("[orchid] Daemon ready");
   } catch (err) {
     console.error("[orchid] Failed to start daemon:", err);
     process.exit(1);
