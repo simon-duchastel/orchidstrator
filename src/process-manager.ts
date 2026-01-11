@@ -1,0 +1,215 @@
+/**
+ * Process Manager
+ *
+ * Handles starting and stopping the orchid daemon process.
+ * Uses PID file to track running instance and manages the daemon lifecycle.
+ */
+
+import { spawn } from "node:child_process";
+import { existsSync, readFileSync, unlinkSync, mkdirSync, openSync, closeSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+  PID_FILE,
+  LOG_FILE,
+  ERROR_LOG_FILE,
+  ORCHID_DIR,
+  DEFAULT_PORT,
+  DEFAULT_HOSTNAME,
+} from "./paths.js";
+
+/**
+ * Check if a process with the given PID is running
+ */
+function isProcessRunning(pid: number): boolean {
+  try {
+    // Sending signal 0 checks if process exists without killing it
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Get the PID of the running daemon, if any
+ */
+export function getRunningPid(): number | null {
+  if (!existsSync(PID_FILE)) {
+    return null;
+  }
+
+  try {
+    const pid = parseInt(readFileSync(PID_FILE, "utf-8").trim(), 10);
+    if (isNaN(pid)) {
+      return null;
+    }
+
+    // Verify the process is actually running
+    if (!isProcessRunning(pid)) {
+      // Stale PID file - clean it up
+      unlinkSync(PID_FILE);
+      return null;
+    }
+
+    return pid;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check if the daemon is currently running
+ */
+export function isRunning(): boolean {
+  return getRunningPid() !== null;
+}
+
+/**
+ * Start the daemon process
+ *
+ * @returns Object with success status and message
+ */
+export async function startDaemon(): Promise<{ success: boolean; message: string }> {
+  // Check if already running
+  const existingPid = getRunningPid();
+  if (existingPid !== null) {
+    return {
+      success: false,
+      message: `Orchid is already running (PID: ${existingPid})`,
+    };
+  }
+
+  // Ensure orchid directory exists
+  if (!existsSync(ORCHID_DIR)) {
+    mkdirSync(ORCHID_DIR, { recursive: true });
+  }
+
+  // Find the daemon script
+  // In development, it's at src/daemon.ts (run via tsx)
+  // In production, it's at dist/daemon.js
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const daemonScript = join(__dirname, "daemon.js");
+  const isDev = !existsSync(daemonScript);
+
+  // Open log files
+  const outFd = openSync(LOG_FILE, "a");
+  const errFd = openSync(ERROR_LOG_FILE, "a");
+
+  try {
+    let child;
+
+    if (isDev) {
+      // Development mode - use tsx
+      const devDaemonScript = join(__dirname, "daemon.ts");
+      child = spawn("npx", ["tsx", devDaemonScript], {
+        detached: true,
+        stdio: ["ignore", outFd, errFd],
+        env: { ...process.env },
+      });
+    } else {
+      // Production mode - run the compiled JS
+      child = spawn("node", [daemonScript], {
+        detached: true,
+        stdio: ["ignore", outFd, errFd],
+        env: { ...process.env },
+      });
+    }
+
+    // Let the child run independently
+    child.unref();
+
+    // Wait a moment for the daemon to start and write its PID
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // Verify it started
+    const pid = getRunningPid();
+    if (pid !== null) {
+      return {
+        success: true,
+        message: `Orchid started (PID: ${pid})\nServer: http://${DEFAULT_HOSTNAME}:${DEFAULT_PORT}\nLogs: ${LOG_FILE}`,
+      };
+    } else {
+      return {
+        success: false,
+        message: `Failed to start orchid. Check logs at ${ERROR_LOG_FILE}`,
+      };
+    }
+  } finally {
+    closeSync(outFd);
+    closeSync(errFd);
+  }
+}
+
+/**
+ * Stop the running daemon
+ *
+ * @returns Object with success status and message
+ */
+export function stopDaemon(): { success: boolean; message: string } {
+  const pid = getRunningPid();
+
+  if (pid === null) {
+    return {
+      success: false,
+      message: "Orchid is not running",
+    };
+  }
+
+  try {
+    // Send SIGTERM for graceful shutdown
+    process.kill(pid, "SIGTERM");
+
+    // Wait a bit and check if it stopped
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    while (attempts < maxAttempts) {
+      if (!isProcessRunning(pid)) {
+        break;
+      }
+      // Busy wait (in real code we'd use setTimeout but this is synchronous)
+      const start = Date.now();
+      while (Date.now() - start < 100) {
+        // spin
+      }
+      attempts++;
+    }
+
+    // If still running, force kill
+    if (isProcessRunning(pid)) {
+      process.kill(pid, "SIGKILL");
+    }
+
+    // Clean up PID file
+    if (existsSync(PID_FILE)) {
+      unlinkSync(PID_FILE);
+    }
+
+    return {
+      success: true,
+      message: `Orchid stopped (was PID: ${pid})`,
+    };
+  } catch (err) {
+    return {
+      success: false,
+      message: `Failed to stop orchid: ${err}`,
+    };
+  }
+}
+
+/**
+ * Get status information about the daemon
+ */
+export function getStatus(): {
+  running: boolean;
+  pid: number | null;
+  serverUrl: string | null;
+} {
+  const pid = getRunningPid();
+  return {
+    running: pid !== null,
+    pid,
+    serverUrl: pid !== null ? `http://${DEFAULT_HOSTNAME}:${DEFAULT_PORT}` : null,
+  };
+}
