@@ -4,13 +4,15 @@
  * Command-line interface for orchestrating background AI tasks.
  *
  * Commands:
- *   orchid up     - Start the orchid daemon
- *   orchid down   - Stop the orchid daemon
- *   orchid status - Check if daemon is running
- *   orchid help   - Show help
+ *   orchid up        - Start the orchid daemon
+ *   orchid down      - Stop the orchid daemon
+ *   orchid status    - Check if daemon is running
+ *   orchid dashboard - Open the web UI in your browser
+ *   orchid help      - Show help
  */
 
 import { Command } from "commander";
+import open from "open";
 import { startDaemon, stopDaemon, getStatus } from "./process-manager.js";
 
 const program = new Command();
@@ -51,6 +53,19 @@ program
     } else {
       console.log("Orchid is not running");
     }
+  });
+
+program
+  .command("dashboard")
+  .description("Open the orchid web UI in your browser")
+  .action(async () => {
+    const status = getStatus();
+    if (!status.running || !status.serverUrl) {
+      console.error("Orchid is not running. Start it with: orchid up");
+      process.exit(1);
+    }
+    console.log(`Opening ${status.serverUrl} in your browser...`);
+    await open(status.serverUrl);
   });
 
 // Default action when no command is provided - show help
