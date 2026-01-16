@@ -8,12 +8,12 @@
 import { createOpencode } from "@opencode-ai/sdk";
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname } from "node:path";
-import { getPidFile, getLogFile, getErrorLogFile, getRepoPort, getOrchidDir } from "./paths.js";
+import { getPidFile, getLogFile, getErrorLogFile, getDirectoryPort, getOrchidDir } from "./paths.js";
 
 async function main() {
   const orchidDir = getOrchidDir();
   const pidFile = getPidFile();
-  const port = getRepoPort();
+  const port = getDirectoryPort();
   
   // Ensure the orchid directory exists
   if (!existsSync(orchidDir)) {

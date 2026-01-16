@@ -1,68 +1,43 @@
-import { homedir } from "node:os";
 import { join, resolve } from "node:path";
-import { existsSync } from "node:fs";
 
 /**
- * Find the git repository root by traversing up from current directory
- */
-function findGitRoot(startPath: string = process.cwd()): string | null {
-  let currentPath = resolve(startPath);
-  
-  while (currentPath !== '/') {
-    if (existsSync(join(currentPath, '.git'))) {
-      return currentPath;
-    }
-    currentPath = resolve(currentPath, '..');
-  }
-  
-  return null;
-}
-
-/**
- * Base directory for orchid configuration and state (per-repo)
+ * Base directory for orchid configuration and state (per-directory)
  */
 export function getOrchidDir(): string {
-  const gitRoot = findGitRoot();
-  if (!gitRoot) {
-    throw new Error('Not in a git repository. Orchidstrator requires a git repository.');
-  }
-  return join(gitRoot, '.orchid');
+  return join(resolve(process.cwd()), '.orchid');
 }
 
 /**
- * Path to the PID file that tracks the running daemon (per-repo)
+ * Path to the PID file that tracks the running daemon (per-directory)
  */
 export function getPidFile(): string {
   return join(getOrchidDir(), 'orchid.pid');
 }
 
 /**
- * Path to the log file for daemon output (per-repo)
+ * Path to the log file for daemon output (per-directory)
  */
 export function getLogFile(): string {
   return join(getOrchidDir(), 'orchid.log');
 }
 
 /**
- * Path to the error log file (per-repo)
+ * Path to the error log file (per-directory)
  */
 export function getErrorLogFile(): string {
   return join(getOrchidDir(), 'orchid.error.log');
 }
 
 /**
- * Generate a unique port for this repository based on git root path
+ * Generate a unique port for this directory based on the current working directory path
  */
-export function getRepoPort(): number {
-  const gitRoot = findGitRoot();
-  if (!gitRoot) {
-    return 4096; // fallback
-  }
+export function getDirectoryPort(): number {
+  const currentDir = resolve(process.cwd());
   
   // Create a hash of the path to generate a consistent port
   let hash = 0;
-  for (let i = 0; i < gitRoot.length; i++) {
-    const char = gitRoot.charCodeAt(i);
+  for (let i = 0; i < currentDir.length; i++) {
+    const char = currentDir.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
     hash = hash & hash; // Convert to 32-bit integer
   }
@@ -73,9 +48,9 @@ export function getRepoPort(): number {
 }
 
 /**
- * Default port for the OpenCode server (repo-specific)
+ * Default port for the OpenCode server (directory-specific)
  */
-export const DEFAULT_PORT = getRepoPort();
+export const DEFAULT_PORT = getDirectoryPort();
 
 /**
  * Default hostname for the OpenCode server

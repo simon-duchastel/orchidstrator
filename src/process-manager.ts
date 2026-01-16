@@ -13,7 +13,7 @@ import {
   getPidFile,
   getLogFile,
   getErrorLogFile,
-  getRepoPort,
+  getDirectoryPort,
   getOrchidDir,
 } from "./paths.js";
 
@@ -80,11 +80,11 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
     };
   }
 
-  // Get repo-specific paths
+  // Get directory-specific paths
   const orchidDir = getOrchidDir();
   const logFile = getLogFile();
   const errorLogFile = getErrorLogFile();
-  const port = getRepoPort();
+  const port = getDirectoryPort();
 
   // Ensure orchid directory exists
   if (!existsSync(orchidDir)) {
@@ -200,7 +200,7 @@ export function getStatus(): {
   serverUrl: string | null;
 } {
   const pid = getRunningPid();
-  const port = getRepoPort();
+  const port = getDirectoryPort();
   return {
     running: pid !== null,
     pid,
