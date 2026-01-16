@@ -8,24 +8,28 @@
 import { createOpencode } from "@opencode-ai/sdk";
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname } from "node:path";
-import { PID_FILE, DEFAULT_PORT, DEFAULT_HOSTNAME, ORCHID_DIR } from "./paths.js";
+import { getPidFile, getLogFile, getErrorLogFile, getRepoPort, getOrchidDir } from "./paths.js";
 
 async function main() {
+  const orchidDir = getOrchidDir();
+  const pidFile = getPidFile();
+  const port = getRepoPort();
+  
   // Ensure the orchid directory exists
-  if (!existsSync(ORCHID_DIR)) {
-    mkdirSync(ORCHID_DIR, { recursive: true });
+  if (!existsSync(orchidDir)) {
+    mkdirSync(orchidDir, { recursive: true });
   }
 
   // Write our PID so the CLI can find and stop us
-  writeFileSync(PID_FILE, process.pid.toString());
+  writeFileSync(pidFile, process.pid.toString());
 
   console.log(`[orchid] Starting daemon (PID: ${process.pid})`);
 
   try {
     // Create the OpenCode server and client
     const opencode = await createOpencode({
-      hostname: DEFAULT_HOSTNAME,
-      port: DEFAULT_PORT,
+      hostname: "127.0.0.1",
+      port: port,
     });
 
     console.log(`[orchid] OpenCode server running at ${opencode.server.url}`);

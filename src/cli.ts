@@ -27,9 +27,14 @@ program
   .description("Start the orchid daemon and OpenCode server")
   .action(async () => {
     console.log("Starting orchid...");
-    const result = await startDaemon();
-    console.log(result.message);
-    process.exit(result.success ? 0 : 1);
+    try {
+      const result = await startDaemon();
+      console.log(result.message);
+      process.exit(result.success ? 0 : 1);
+    } catch (error) {
+      console.error("Error:", error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
   });
 
 program
@@ -37,21 +42,31 @@ program
   .description("Stop the orchid daemon and OpenCode server")
   .action(async () => {
     console.log("Stopping orchid...");
-    const result = await stopDaemon();
-    console.log(result.message);
-    process.exit(result.success ? 0 : 1);
+    try {
+      const result = await stopDaemon();
+      console.log(result.message);
+      process.exit(result.success ? 0 : 1);
+    } catch (error) {
+      console.error("Error:", error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
   });
 
 program
   .command("status")
   .description("Check if the orchid daemon is running")
   .action(() => {
-    const status = getStatus();
-    if (status.running) {
-      console.log(`Orchid is running (PID: ${status.pid})`);
-      console.log(`Server: ${status.serverUrl}`);
-    } else {
-      console.log("Orchid is not running");
+    try {
+      const status = getStatus();
+      if (status.running) {
+        console.log(`Orchid is running (PID: ${status.pid})`);
+        console.log(`Server: ${status.serverUrl}`);
+      } else {
+        console.log("Orchid is not running");
+      }
+    } catch (error) {
+      console.error("Error:", error instanceof Error ? error.message : String(error));
+      process.exit(1);
     }
   });
 
@@ -59,13 +74,18 @@ program
   .command("dashboard")
   .description("Open the orchid web UI in your browser")
   .action(async () => {
-    const status = getStatus();
-    if (!status.running || !status.serverUrl) {
-      console.error("Orchid is not running. Start it with: orchid up");
+    try {
+      const status = getStatus();
+      if (!status.running || !status.serverUrl) {
+        console.error("Orchid is not running. Start it with: orchid up");
+        process.exit(1);
+      }
+      console.log(`Opening ${status.serverUrl} in your browser...`);
+      await open(status.serverUrl);
+    } catch (error) {
+      console.error("Error:", error instanceof Error ? error.message : String(error));
       process.exit(1);
     }
-    console.log(`Opening ${status.serverUrl} in your browser...`);
-    await open(status.serverUrl);
   });
 
 // Default action when no command is provided - show help

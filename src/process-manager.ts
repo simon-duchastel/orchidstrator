@@ -10,12 +10,11 @@ import { existsSync, readFileSync, unlinkSync, mkdirSync, openSync, closeSync } 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  PID_FILE,
-  LOG_FILE,
-  ERROR_LOG_FILE,
-  ORCHID_DIR,
-  DEFAULT_PORT,
-  DEFAULT_HOSTNAME,
+  getPidFile,
+  getLogFile,
+  getErrorLogFile,
+  getRepoPort,
+  getOrchidDir,
 } from "./paths.js";
 
 /**
@@ -35,12 +34,13 @@ function isProcessRunning(pid: number): boolean {
  * Get the PID of the running daemon, if any
  */
 export function getRunningPid(): number | null {
-  if (!existsSync(PID_FILE)) {
+  const pidFile = getPidFile();
+  if (!existsSync(pidFile)) {
     return null;
   }
 
   try {
-    const pid = parseInt(readFileSync(PID_FILE, "utf-8").trim(), 10);
+    const pid = parseInt(readFileSync(pidFile, "utf-8").trim(), 10);
     if (isNaN(pid)) {
       return null;
     }
@@ -48,7 +48,7 @@ export function getRunningPid(): number | null {
     // Verify the process is actually running
     if (!isProcessRunning(pid)) {
       // Stale PID file - clean it up
-      unlinkSync(PID_FILE);
+      unlinkSync(pidFile);
       return null;
     }
 
@@ -80,9 +80,15 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
     };
   }
 
+  // Get repo-specific paths
+  const orchidDir = getOrchidDir();
+  const logFile = getLogFile();
+  const errorLogFile = getErrorLogFile();
+  const port = getRepoPort();
+
   // Ensure orchid directory exists
-  if (!existsSync(ORCHID_DIR)) {
-    mkdirSync(ORCHID_DIR, { recursive: true });
+  if (!existsSync(orchidDir)) {
+    mkdirSync(orchidDir, { recursive: true });
   }
 
   // Find the daemon script
@@ -93,8 +99,8 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
   const isDev = !existsSync(daemonScript);
 
   // Open log files
-  const outFd = openSync(LOG_FILE, "a");
-  const errFd = openSync(ERROR_LOG_FILE, "a");
+  const outFd = openSync(logFile, "a");
+  const errFd = openSync(errorLogFile, "a");
 
   try {
     let child;
@@ -127,12 +133,12 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
     if (pid !== null) {
       return {
         success: true,
-        message: `Orchid started (PID: ${pid})\nServer: http://${DEFAULT_HOSTNAME}:${DEFAULT_PORT}\nLogs: ${LOG_FILE}`,
+        message: `Orchid started (PID: ${pid})\nServer: http://127.0.0.1:${port}\nLogs: ${logFile}`,
       };
     } else {
       return {
         success: false,
-        message: `Failed to start orchid. Check logs at ${ERROR_LOG_FILE}`,
+        message: `Failed to start orchid. Check logs at ${errorLogFile}`,
       };
     }
   } finally {
@@ -168,8 +174,9 @@ export async function stopDaemon(): Promise<{ success: boolean; message: string 
       process.kill(pid, "SIGKILL");
     }
 
-    if (existsSync(PID_FILE)) {
-      unlinkSync(PID_FILE);
+    const pidFile = getPidFile();
+    if (existsSync(pidFile)) {
+      unlinkSync(pidFile);
     }
 
     return {
@@ -193,9 +200,10 @@ export function getStatus(): {
   serverUrl: string | null;
 } {
   const pid = getRunningPid();
+  const port = getRepoPort();
   return {
     running: pid !== null,
     pid,
-    serverUrl: pid !== null ? `http://${DEFAULT_HOSTNAME}:${DEFAULT_PORT}` : null,
+    serverUrl: pid !== null ? `http://127.0.0.1:${port}` : null,
   };
 }
