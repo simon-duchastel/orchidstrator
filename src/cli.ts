@@ -13,7 +13,8 @@
 
 import { Command } from "commander";
 import open from "open";
-import { startDaemon, stopDaemon, getStatus } from "./process-manager.js";
+import { startDaemon, stopDaemon, getStatus } from "./process-manager";
+import { initializeOrchid, isOrchidInitialized } from "./init";
 
 const program = new Command();
 
@@ -21,6 +22,17 @@ program
   .name("orchid")
   .description("Orchestrate complex background AI tasks")
   .version("1.0.0");
+
+program
+  .command("init")
+  .description("Initialize orchid workspace with a git repository")
+  .argument("<repository-url>", "Git repository URL to clone")
+  .action(async (repoUrl) => {
+    console.log(`Initializing orchid with repository: ${repoUrl}`);
+    const result = await initializeOrchid(repoUrl);
+    console.log(result.message);
+    process.exit(result.success ? 0 : 1);
+  });
 
 program
   .command("up")

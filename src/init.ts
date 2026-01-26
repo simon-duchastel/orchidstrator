@@ -1,0 +1,186 @@
+/**
+ * Orchid Initialization
+ *
+ * Handles the orchid init command workflow.
+ * Creates workspace structure and clones repository.
+ */
+
+import { existsSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { cloneRepository, GitOperations } from "./git-manager";
+import {
+  getOrchidDir,
+  getPidFile,
+  getMainRepoDir,
+  getWorktreesDir,
+} from "./paths";
+
+/**
+ * Result of orchid initialization
+ */
+export interface InitResult {
+  success: boolean;
+  message: string;
+  cleanup?: () => void;
+}
+
+/**
+ * Check if orchid is already initialized in current directory
+ */
+export function isOrchidInitialized(): boolean {
+  const orchidDir = getOrchidDir();
+  const mainRepoDir = getMainRepoDir();
+  
+  return existsSync(orchidDir) && 
+         existsSync(mainRepoDir);
+}
+
+/**
+ * Validate that orchid structure is well-formed
+ */
+export function validateOrchidStructure(): boolean {
+  const orchidDir = getOrchidDir();
+  const pidFile = getPidFile();
+  const mainRepoDir = getMainRepoDir();
+  const worktreesDir = getWorktreesDir();
+
+  if (!existsSync(orchidDir)) {
+    return false;
+  }
+
+  if (!existsSync(pidFile)) {
+    return false;
+  }
+
+  if (!existsSync(mainRepoDir)) {
+    return false;
+  }
+
+  if (!existsSync(worktreesDir)) {
+    return false;
+  }
+
+  // Validate PID file contains a valid number or is empty
+  try {
+    const pidContent = require("node:fs").readFileSync(pidFile, "utf-8").trim();
+    if (pidContent && !/^\d+$/.test(pidContent)) {
+      return false;
+    }
+  } catch {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Create the basic orchid directory structure
+ */
+export function createOrchidStructure(): { success: boolean; message: string; cleanup?: () => void } {
+  const orchidDir = getOrchidDir();
+  const pidFile = getPidFile();
+  const mainRepoDir = getMainRepoDir();
+  const worktreesDir = getWorktreesDir();
+
+  const createdPaths: string[] = [];
+
+  try {
+    // Create .orchid directory
+    if (!existsSync(orchidDir)) {
+      mkdirSync(orchidDir, { recursive: true });
+      createdPaths.push(orchidDir);
+    }
+
+    // Create main directory
+    if (!existsSync(mainRepoDir)) {
+      mkdirSync(mainRepoDir, { recursive: true });
+      createdPaths.push(mainRepoDir);
+    }
+
+    // Create worktrees directory
+    if (!existsSync(worktreesDir)) {
+      mkdirSync(worktreesDir, { recursive: true });
+      createdPaths.push(worktreesDir);
+    }
+
+    // Create empty PID file
+    if (!existsSync(pidFile)) {
+      writeFileSync(pidFile, "", "utf-8");
+      createdPaths.push(pidFile);
+    }
+
+    return {
+      success: true,
+      message: "Created orchid directory structure",
+      cleanup: () => {
+        // Cleanup on failure
+        createdPaths.reverse().forEach(path => {
+          try {
+            if (existsSync(path)) {
+              rmSync(path, { recursive: true, force: true });
+            }
+          } catch {
+            // Ignore cleanup errors
+          }
+        });
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: `Failed to create orchid structure: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}
+
+/**
+ * Initialize orchid workspace
+ */
+export async function initializeOrchid(
+  repoUrl: string,
+  gitOps: GitOperations = require("./git-manager").defaultGitOperations
+): Promise<InitResult> {
+  // Check if already initialized
+  if (isOrchidInitialized()) {
+    return {
+      success: false,
+      message: "Orchid is already initialized in this directory. Use 'orchid status' to check the current state.",
+    };
+  }
+
+  // Create directory structure
+  const structureResult = createOrchidStructure();
+  if (!structureResult.success) {
+    return {
+      success: false,
+      message: structureResult.message,
+    };
+  }
+
+  try {
+    // Clone repository to main directory
+    const mainRepoDir = getMainRepoDir();
+    const cloneResult = await cloneRepository(repoUrl, mainRepoDir, gitOps);
+
+    if (!cloneResult.success) {
+      // Clean up on failure
+      structureResult.cleanup?.();
+      return {
+        success: false,
+        message: `Initialization failed: ${cloneResult.message}`,
+      };
+    }
+
+    return {
+      success: true,
+      message: `Successfully initialized orchid with repository ${repoUrl}\nMain repository cloned to: ${mainRepoDir}\nWorktrees directory: ${getWorktreesDir()}\n\nStart the orchid daemon with: orchid up`,
+    };
+  } catch (error) {
+    // Clean up on failure
+    structureResult.cleanup?.();
+    return {
+      success: false,
+      message: `Initialization failed: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}

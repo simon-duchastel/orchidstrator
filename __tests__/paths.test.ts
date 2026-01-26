@@ -11,6 +11,8 @@ import {
   getPidFile,
   getLogFile,
   getErrorLogFile,
+  getMainRepoDir,
+  getWorktreesDir,
 } from '../src/paths';
 
 describe('paths.ts - Pure Functions', () => {
@@ -156,6 +158,16 @@ describe('paths.ts - Pure Functions', () => {
       const errorLogFile = getErrorLogFile(() => '/test/directory');
       expect(errorLogFile).toBe('/test/directory/.orchid/orchid.error.log');
     });
+
+    it('should generate correct main repo directory path', () => {
+      const mainRepoDir = getMainRepoDir(() => '/test/directory');
+      expect(mainRepoDir).toBe('/test/directory/.orchid/main');
+    });
+
+    it('should generate correct worktrees directory path', () => {
+      const worktreesDir = getWorktreesDir(() => '/test/directory');
+      expect(worktreesDir).toBe('/test/directory/.orchid/worktrees');
+    });
   });
 
   describe('Integration tests', () => {
@@ -164,15 +176,23 @@ describe('paths.ts - Pure Functions', () => {
       
       const port1 = getDirectoryPort(() => mockCwd);
       const orchidDir1 = getOrchidDir(() => mockCwd);
+      const mainRepoDir1 = getMainRepoDir(() => mockCwd);
+      const worktreesDir1 = getWorktreesDir(() => mockCwd);
       
       const port2 = getDirectoryPort(() => mockCwd);
       const orchidDir2 = getOrchidDir(() => mockCwd);
+      const mainRepoDir2 = getMainRepoDir(() => mockCwd);
+      const worktreesDir2 = getWorktreesDir(() => mockCwd);
       
       expect(port1).toBe(port2);
       expect(orchidDir1).toBe(orchidDir2);
+      expect(mainRepoDir1).toBe(mainRepoDir2);
+      expect(worktreesDir1).toBe(worktreesDir2);
       expect(port1).toBeGreaterThanOrEqual(4000);
       expect(port1).toBeLessThanOrEqual(9999);
       expect(orchidDir1).toBe('/consistent/project/directory/.orchid');
+      expect(mainRepoDir1).toBe('/consistent/project/directory/.orchid/main');
+      expect(worktreesDir1).toBe('/consistent/project/directory/.orchid/worktrees');
     });
 
     it('should handle edge case paths consistently', () => {

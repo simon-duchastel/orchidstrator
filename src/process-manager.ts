@@ -15,7 +15,9 @@ import {
   getErrorLogFile,
   getDirectoryPort,
   getOrchidDir,
-} from "./paths.js";
+  getMainRepoDir,
+} from "./paths";
+import { validateOrchidStructure } from "./init";
 
 /**
  * Check if a process with the given PID is running
@@ -78,6 +80,16 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
       success: false,
       message: `Orchid is already running (PID: ${existingPid})`,
     };
+  }
+
+  // Validate orchid structure if this is an initialized workspace
+  if (existsSync(getMainRepoDir())) {
+    if (!validateOrchidStructure()) {
+      return {
+        success: false,
+        message: "Orchid workspace is not properly initialized. Please run 'orchid init <repository-url>' to set up the workspace.",
+      };
+    }
   }
 
   // Get directory-specific paths
