@@ -5,9 +5,9 @@
  * Creates workspace structure and clones repository.
  */
 
-import { existsSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { cloneRepository, GitOperations } from "./git-manager";
+import { cloneRepository, GitOperations, defaultGitOperations } from "./git-manager";
 import {
   getOrchidDir,
   getPidFile,
@@ -62,7 +62,7 @@ export function validateOrchidStructure(): boolean {
 
   // Validate PID file contains a valid number or is empty
   try {
-    const pidContent = require("node:fs").readFileSync(pidFile, "utf-8").trim();
+    const pidContent = readFileSync(pidFile, "utf-8").trim();
     if (pidContent && !/^\d+$/.test(pidContent)) {
       return false;
     }
@@ -138,7 +138,7 @@ export function createOrchidStructure(): { success: boolean; message: string; cl
  */
 export async function initializeOrchid(
   repoUrl: string,
-  gitOps: GitOperations = require("./git-manager").defaultGitOperations
+  gitOps: GitOperations = defaultGitOperations
 ): Promise<InitResult> {
   // Check if already initialized
   if (isOrchidInitialized()) {

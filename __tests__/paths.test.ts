@@ -1,8 +1,9 @@
 /**
  * Tests for paths.ts module
- * These tests focus on the pure functions we extracted for testability
+ * These tests focus on pure functions we extracted for testability
  */
 
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   generatePortHash,
   hashToPort,

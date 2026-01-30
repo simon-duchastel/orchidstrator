@@ -3,33 +3,25 @@
  * Tests command-line interface behavior with mocked dependencies
  */
 
-import { jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Command } from 'commander';
-import { MockGitOperations } from '../src/git-manager';
 
 // Mock the init module
-jest.mock('../src/init', () => {
-  const actual = jest.requireActual('../src/init');
-  return {
-    ...(actual as any),
-    initializeOrchid: jest.fn(),
-    isOrchidInitialized: jest.fn(),
-  };
-});
+vi.mock('../src/init', () => ({
+  initializeOrchid: vi.fn(),
+  isOrchidInitialized: vi.fn(),
+  validateOrchidStructure: vi.fn(),
+}));
 
 // Mock the process-manager module
-jest.mock('../src/process-manager', () => {
-  const actual = jest.requireActual('../src/process-manager');
-  return {
-    ...(actual as any),
-    startDaemon: jest.fn(),
-    stopDaemon: jest.fn(),
-    getStatus: jest.fn(),
-  };
-});
+vi.mock('../src/process-manager', () => ({
+  startDaemon: vi.fn(),
+  stopDaemon: vi.fn(),
+  getStatus: vi.fn(),
+}));
 
 // Mock open function
-jest.mock('open', () => jest.fn());
+vi.mock('open', () => vi.fn());
 
 import { initializeOrchid, isOrchidInitialized } from '../src/init';
 import { startDaemon, stopDaemon, getStatus } from '../src/process-manager';
@@ -42,27 +34,27 @@ describe('CLI Integration Tests', () => {
 
   beforeEach(() => {
     // Mock process.exit to prevent tests from actually exiting
-    mockProcessExit = jest.spyOn(process, 'exit').mockImplementation(() => {
+    mockProcessExit = vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('process.exit called');
     });
     
     // Mock console methods
-    mockConsoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
-    mockConsoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockConsoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     
     // Clear all mocks
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
     mockProcessExit.mockRestore();
-    mockConsoleLog.mockRestore?.();
-    mockConsoleError.mockRestore?.();
+    mockConsoleLog.mockRestore();
+    mockConsoleError.mockRestore();
   });
 
   describe('init command', () => {
     it('should call initializeOrchid with correct arguments', async () => {
-      const mockInitialize = initializeOrchid as jest.MockedFunction<typeof initializeOrchid>;
+      const mockInitialize = vi.mocked(initializeOrchid);
       mockInitialize.mockResolvedValue({
         success: true,
         message: 'Successfully initialized'
@@ -101,7 +93,7 @@ describe('CLI Integration Tests', () => {
     });
 
     it('should handle initialization failure', async () => {
-      const mockInitialize = initializeOrchid as jest.MockedFunction<typeof initializeOrchid>;
+      const mockInitialize = vi.mocked(initializeOrchid);
       mockInitialize.mockResolvedValue({
         success: false,
         message: 'Initialization failed'
@@ -162,7 +154,7 @@ describe('CLI Integration Tests', () => {
 
   describe('existing commands integration', () => {
     it('should maintain up command functionality', async () => {
-      const mockStartDaemon = startDaemon as jest.MockedFunction<typeof startDaemon>;
+      const mockStartDaemon = vi.mocked(startDaemon);
       mockStartDaemon.mockResolvedValue({
         success: true,
         message: 'Orchid started'
@@ -199,7 +191,7 @@ describe('CLI Integration Tests', () => {
     });
 
     it('should maintain status command functionality', async () => {
-      const mockGetStatus = getStatus as jest.MockedFunction<typeof getStatus>;
+      const mockGetStatus = vi.mocked(getStatus);
       mockGetStatus.mockReturnValue({
         running: true,
         pid: 12345,

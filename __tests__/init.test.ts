@@ -3,33 +3,29 @@
  * Tests orchid initialization workflow with dependency injection
  */
 
-import { jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { 
   isOrchidInitialized, 
   validateOrchidStructure, 
   createOrchidStructure, 
   initializeOrchid 
 } from '../src/init';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { MockGitOperations } from '../src/git-manager';
+import { execSync } from 'child_process';
 
-// Mock the paths module to control directory locations for testing
-jest.mock('../src/paths', () => {
-  const original = jest.requireActual('../src/paths');
-  return {
-    ...(original as any),
-    getOrchidDir: () => '/tmp/test-orchid/.orchid',
-    getPidFile: () => '/tmp/test-orchid/.orchid/orchid.pid',
-    getMainRepoDir: () => '/tmp/test-orchid/.orchid/main',
-    getWorktreesDir: () => '/tmp/test-orchid/.orchid/worktrees',
-  };
-});
+// Mock: paths module to control directory locations for testing
+vi.mock('../src/paths', () => ({
+  getOrchidDir: () => '/tmp/test-orchid/.orchid',
+  getPidFile: () => '/tmp/test-orchid/.orchid/orchid.pid',
+  getMainRepoDir: () => '/tmp/test-orchid/.orchid/main',
+  getWorktreesDir: () => '/tmp/test-orchid/.orchid/worktrees',
+}));
 
 describe('init.ts - Orchid Initialization', () => {
   beforeEach(() => {
     // Clean up test directory before each test
-    const { execSync } = require('child_process');
     try {
       execSync('rm -rf /tmp/test-orchid', { stdio: 'ignore' });
     } catch {
@@ -39,7 +35,6 @@ describe('init.ts - Orchid Initialization', () => {
 
   afterEach(() => {
     // Clean up test directory after each test
-    const { execSync } = require('child_process');
     try {
       execSync('rm -rf /tmp/test-orchid', { stdio: 'ignore' });
     } catch {
@@ -53,13 +48,11 @@ describe('init.ts - Orchid Initialization', () => {
     });
 
     it('should return false when .orchid exists but main directory does not', () => {
-      const { mkdirSync } = require('node:fs');
       mkdirSync('/tmp/test-orchid/.orchid', { recursive: true });
       expect(isOrchidInitialized()).toBe(false);
     });
 
     it('should return true when both .orchid and main directories exist', () => {
-      const { mkdirSync } = require('node:fs');
       mkdirSync('/tmp/test-orchid/.orchid/main', { recursive: true });
       expect(isOrchidInitialized()).toBe(true);
     });
@@ -68,7 +61,6 @@ describe('init.ts - Orchid Initialization', () => {
   describe('validateOrchidStructure', () => {
     beforeEach(() => {
       // Create basic structure for validation tests
-      const { mkdirSync, writeFileSync } = require('node:fs');
       mkdirSync('/tmp/test-orchid/.orchid', { recursive: true });
       mkdirSync('/tmp/test-orchid/.orchid/main', { recursive: true });
       mkdirSync('/tmp/test-orchid/.orchid/worktrees', { recursive: true });
@@ -76,48 +68,39 @@ describe('init.ts - Orchid Initialization', () => {
 
     it('should validate correct structure', () => {
       // Create empty PID file
-      require('node:fs').writeFileSync('/tmp/test-orchid/.orchid/orchid.pid', '');
+      writeFileSync('/tmp/test-orchid/.orchid/orchid.pid', '');
       expect(validateOrchidStructure()).toBe(true);
     });
 
     it('should validate structure with valid PID', () => {
-      require('node:fs').writeFileSync('/tmp/test-orchid/.orchid/orchid.pid', '12345');
+      writeFileSync('/tmp/test-orchid/.orchid/orchid.pid', '12345');
       expect(validateOrchidStructure()).toBe(true);
     });
 
     it('should reject when .orchid directory missing', () => {
-      const { rmSync } = require('node:fs');
       rmSync('/tmp/test-orchid/.orchid', { recursive: true });
       expect(validateOrchidStructure()).toBe(false);
     });
 
     it('should reject when PID file missing', () => {
-      const { rmSync } = require('node:fs');
+      // First remove PID file, then test
       rmSync('/tmp/test-orchid/.orchid/orchid.pid');
       expect(validateOrchidStructure()).toBe(false);
     });
 
     it('should reject when main directory missing', () => {
-      const { rmSync } = require('node:fs');
       rmSync('/tmp/test-orchid/.orchid/main', { recursive: true });
       expect(validateOrchidStructure()).toBe(false);
     });
 
     it('should reject when worktrees directory missing', () => {
-      const { rmSync } = require('node:fs');
       rmSync('/tmp/test-orchid/.orchid/worktrees', { recursive: true });
       expect(validateOrchidStructure()).toBe(false);
     });
 
     it('should reject when PID file contains invalid content', () => {
-      require('node:fs').writeFileSync('/tmp/test-orchid/.orchid/orchid.pid', 'invalid-pid');
+      writeFileSync('/tmp/test-orchid/.orchid/orchid.pid', 'invalid-pid');
       expect(validateOrchidStructure()).toBe(false);
-    });
-
-    it('should reject when PID file has read errors', () => {
-      // This is hard to test without actually making the file unreadable
-      // but the logic in the function handles read errors
-      expect(validateOrchidStructure()).toBe(true); // Current setup should pass
     });
   });
 
@@ -138,7 +121,6 @@ describe('init.ts - Orchid Initialization', () => {
 
     it('should not fail when directories already exist', () => {
       // Pre-create some directories
-      const { mkdirSync } = require('node:fs');
       mkdirSync('/tmp/test-orchid/.orchid', { recursive: true });
       
       const result = createOrchidStructure();

@@ -4,13 +4,17 @@ export default {
   testEnvironment: 'node',
   roots: ['<rootDir>/src', '<rootDir>/__tests__'],
   testMatch: ['**/__tests__/**/*.test.ts', '**/?(*.)+(spec|test).ts'],
-  transform: {},
-  extensionsToTreatAsEsm: ['.ts'],
-  globals: {
-    'ts-jest': {
+  transform: {
+    '^.+\\.ts$': ['ts-jest', {
       useESM: true,
-    },
+      tsconfig: {
+        module: 'ESNext',
+        target: 'ES2022',
+      },
+    }],
   },
+  extensionsToTreatAsEsm: ['.ts'],
+  
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',
