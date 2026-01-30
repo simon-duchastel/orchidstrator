@@ -11,7 +11,7 @@
     "build": "tsup",
     "dev": "tsx src/cli.ts",
     "start": "node dist/cli.js",
-    "test": "vitest",
+    "test": "vitest --run",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage",
     "test:jest": "NODE_OPTIONS='--experimental-vm-modules' jest",
