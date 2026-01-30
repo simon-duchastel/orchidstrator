@@ -82,6 +82,16 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
     };
   }
 
+  // Check for corrupted setup: PID file exists but main directory doesn't
+  const pidFile = getPidFile();
+  const mainRepoDir = getMainRepoDir();
+  if (existsSync(pidFile) && !existsSync(mainRepoDir)) {
+    return {
+      success: false,
+      message: "Orchid workspace is corrupted: PID file exists but main repository directory is missing. Please reinitialize with 'orchid init <repository-url>'.",
+    };
+  }
+
   // Validate orchid structure if this is an initialized workspace
   if (existsSync(getMainRepoDir())) {
     if (!validateOrchidStructure()) {

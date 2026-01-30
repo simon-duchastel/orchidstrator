@@ -3,6 +3,7 @@
  * Tests git operations with dependency injection for mocking
  */
 
+import { describe, it, expect, beforeEach } from 'vitest';
 import { 
   ProductionGitOperations, 
   MockGitOperations, 
