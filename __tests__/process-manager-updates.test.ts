@@ -29,15 +29,16 @@ vi.mock('../src/paths', () => ({
   getLogFile: () => '/tmp/test-orchid-daemon/.orchid/orchid.log',
   getErrorLogFile: () => '/tmp/test-orchid-daemon/.orchid/orchid.error.log',
   getMainRepoDir: () => '/tmp/test-orchid-daemon/.orchid/main',
+  getWorktreesDir: () => '/tmp/test-orchid-daemon/.orchid/worktrees',
   getDirectoryPort: () => 5678,
 }));
 
-// Mock init module's validateOrchidStructure function
-vi.mock('../src/init', () => ({
+// Mock commands module's validateOrchidStructure function
+vi.mock('../src/commands', () => ({
   validateOrchidStructure: vi.fn(),
 }));
 
-import { validateOrchidStructure } from '../src/init';
+import { validateOrchidStructure } from '../src/commands';
 
 describe('process-manager.ts - Updated Logic', () => {
   beforeEach(() => {

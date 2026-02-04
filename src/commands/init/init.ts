@@ -7,13 +7,13 @@
 
 import { existsSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { cloneRepository, GitOperations, defaultGitOperations } from "./git-manager";
+import { cloneRepository, GitOperations, defaultGitOperations } from "../../git-manager";
 import {
   getOrchidDir,
   getPidFile,
   getMainRepoDir,
   getWorktreesDir,
-} from "./paths";
+} from "../../paths";
 
 /**
  * Result of orchid initialization

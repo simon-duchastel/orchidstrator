@@ -17,7 +17,7 @@ import {
   getOrchidDir,
   getMainRepoDir,
 } from "./paths";
-import { validateOrchidStructure } from "./init";
+import { validateOrchidStructure } from "./commands";
 
 /**
  * Check if a process with the given PID is running

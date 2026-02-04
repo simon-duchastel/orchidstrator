@@ -14,7 +14,7 @@
 import { Command } from "commander";
 import open from "open";
 import { startDaemon, stopDaemon, getStatus } from "./process-manager";
-import { initializeOrchid, isOrchidInitialized } from "./init";
+import { initializeOrchid, isOrchidInitialized } from "./commands";
 
 const program = new Command();
 
