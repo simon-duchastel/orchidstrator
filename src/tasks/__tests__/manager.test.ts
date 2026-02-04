@@ -280,15 +280,15 @@ describe('TaskManager', () => {
 });
 
 describe('TaskFileUtils', () => {
-  describe('parseMarkdownContent', () => {
-    it('should parse markdown with frontmatter', () => {
+  describe('parseTaskContent', () => {
+    it('should parse task content with frontmatter', () => {
       const content = `---
 title: "Test Task"
 assignee: "john.doe"
 ---
 This is the task description.`;
 
-      const result = TaskFileUtils.parseMarkdownContent(content);
+      const result = TaskFileUtils.parseTaskContent(content);
       
       expect(result.frontmatter.title).toBe('Test Task');
       expect(result.frontmatter.assignee).toBe('john.doe');
@@ -301,7 +301,7 @@ title: "Simple Task"
 ---
 Simple task description.`;
 
-      const result = TaskFileUtils.parseMarkdownContent(content);
+      const result = TaskFileUtils.parseTaskContent(content);
       
       expect(result.frontmatter.title).toBe('Simple Task');
       expect(result.frontmatter.assignee).toBeUndefined();
@@ -311,12 +311,12 @@ Simple task description.`;
     it('should throw error for missing frontmatter', () => {
       const content = 'No frontmatter here';
       
-      expect(() => TaskFileUtils.parseMarkdownContent(content)).toThrow('Invalid task file format');
+      expect(() => TaskFileUtils.parseTaskContent(content)).toThrow('Invalid task file format');
     });
   });
 
-  describe('taskToMarkdown', () => {
-    it('should convert task to markdown', () => {
+  describe('taskToFileString', () => {
+    it('should convert task to task file string', () => {
       const task = {
         id: 'test-id',
         frontmatter: {
@@ -327,11 +327,11 @@ Simple task description.`;
         status: 'in-progress' as const,
       };
 
-      const markdown = TaskFileUtils.taskToMarkdown(task);
+      const taskString = TaskFileUtils.taskToFileString(task);
       
-      expect(markdown).toContain('title: "Test Task"');
-      expect(markdown).toContain('assignee: "john.doe"');
-      expect(markdown).toContain('Task description');
+      expect(taskString).toContain('title: "Test Task"');
+      expect(taskString).toContain('assignee: "john.doe"');
+      expect(taskString).toContain('Task description');
     });
 
     it('should handle task without assignee', () => {
@@ -344,11 +344,11 @@ Simple task description.`;
         status: 'open' as const,
       };
 
-      const markdown = TaskFileUtils.taskToMarkdown(task);
+      const taskString = TaskFileUtils.taskToFileString(task);
       
-      expect(markdown).toContain('title: "Simple Task"');
-      expect(markdown).not.toContain('assignee:');
-      expect(markdown).toContain('Simple description');
+      expect(taskString).toContain('title: "Simple Task"');
+      expect(taskString).not.toContain('assignee:');
+      expect(taskString).toContain('Simple description');
     });
   });
 

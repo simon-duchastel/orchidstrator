@@ -4,17 +4,17 @@ import type { Task, TaskFrontmatter } from './types.js';
 
 export class TaskFileUtils {
   /**
-   * Parse markdown file with frontmatter
+   * Parse task file with frontmatter
    */
   static async parseTaskFile(filePath: string): Promise<{ frontmatter: TaskFrontmatter; description: string }> {
     const content = await fs.readFile(filePath, 'utf-8');
-    return this.parseMarkdownContent(content);
+    return this.parseTaskContent(content);
   }
 
   /**
-   * Parse markdown content string with frontmatter
+   * Parse task content string with frontmatter
    */
-  static parseMarkdownContent(content: string): { frontmatter: TaskFrontmatter; description: string } {
+  static parseTaskContent(content: string): { frontmatter: TaskFrontmatter; description: string } {
     const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/;
     const match = content.match(frontmatterRegex);
     
@@ -63,9 +63,9 @@ export class TaskFileUtils {
   }
 
   /**
-   * Convert task to markdown string with frontmatter
+   * Convert task to task file string with frontmatter
    */
-  static taskToMarkdown(task: Task): string {
+  static taskToFileString(task: Task): string {
     const frontmatter: string[] = [`title: "${task.frontmatter.title}"`];
     
     if (task.frontmatter.assignee) {
@@ -79,11 +79,11 @@ export class TaskFileUtils {
   }
 
   /**
-   * Write task to markdown file
+   * Write task to task file
    */
   static async writeTaskFile(filePath: string, task: Task): Promise<void> {
-    const markdown = this.taskToMarkdown(task);
-    await fs.writeFile(filePath, markdown, 'utf-8');
+    const taskString = this.taskToFileString(task);
+    await fs.writeFile(filePath, taskString, 'utf-8');
   }
 
   /**

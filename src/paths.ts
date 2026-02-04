@@ -102,10 +102,10 @@ export function getTaskDir(taskId: string, status: 'open' | 'in-progress' | 'clo
 }
 
 /**
- * Path to a specific task markdown file
+ * Path to a specific task file
  */
 export function getTaskFile(taskId: string, status: 'open' | 'in-progress' | 'closed', cwdProvider?: () => string): string {
-  return join(getTaskDir(taskId, status, cwdProvider), `${taskId}.md`);
+  return join(getTaskDir(taskId, status, cwdProvider), `${taskId}.task`);
 }
 
 /**
