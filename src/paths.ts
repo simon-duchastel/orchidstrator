@@ -74,6 +74,48 @@ export function getWorktreesDir(cwdProvider?: () => string): string {
 }
 
 /**
+ * Path to the tasks directory
+ */
+export function getTasksDir(cwdProvider?: () => string): string {
+  return join(getOrchidDir(cwdProvider), 'tasks');
+}
+
+/**
+ * Path to the task lockfile
+ */
+export function getTaskLockFile(cwdProvider?: () => string): string {
+  return join(getTasksDir(cwdProvider), 'lockfile');
+}
+
+/**
+ * Path to a task status directory
+ */
+export function getTaskStatusDir(status: 'open' | 'in-progress' | 'closed', cwdProvider?: () => string): string {
+  return join(getTasksDir(cwdProvider), status);
+}
+
+/**
+ * Path to a specific task directory
+ */
+export function getTaskDir(taskId: string, status: 'open' | 'in-progress' | 'closed', cwdProvider?: () => string): string {
+  return join(getTaskStatusDir(status, cwdProvider), taskId);
+}
+
+/**
+ * Path to a specific task markdown file
+ */
+export function getTaskFile(taskId: string, status: 'open' | 'in-progress' | 'closed', cwdProvider?: () => string): string {
+  return join(getTaskDir(taskId, status, cwdProvider), `${taskId}.md`);
+}
+
+/**
+ * Path to sub-tasks directory within a task
+ */
+export function getSubtasksDir(taskId: string, status: 'open' | 'in-progress' | 'closed', cwdProvider?: () => string): string {
+  return join(getTaskDir(taskId, status, cwdProvider), 'sub-tasks');
+}
+
+/**
  * Default port for the OpenCode server (directory-specific)
  */
 export const DEFAULT_PORT = getDirectoryPort();
