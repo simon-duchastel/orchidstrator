@@ -2,7 +2,6 @@
 
 > **Orchid** helps you orchidstrate (like orchestrate) AI agents in the background.
 
-A CLI tool for orchidstrating complex background AI tasks.
 
 ## Overview
 
