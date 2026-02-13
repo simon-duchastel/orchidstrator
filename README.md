@@ -1,10 +1,11 @@
-# Orchidstrator
+# Orchid
 
-A CLI tool for orchestrating complex background AI tasks.
+> **Orchid** helps you orchidstrate (like orchestrate) AI agents in the background.
+
 
 ## Overview
 
-Orchidstrator (`orchid`) manages a background daemon that runs an OpenCode server. This allows you to orchestrate AI tasks in the background without blocking your terminal.
+Orchid (`orchid`) manages a background daemon that runs an OpenCode server. This allows you to orchestrate AI tasks in the background without blocking your terminal.
 
 ## Installation
 

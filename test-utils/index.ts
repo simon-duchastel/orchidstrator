@@ -1,5 +1,5 @@
 /**
- * Test utilities for orchidstrator testing
+ * Test utilities for orchid testing
  */
 
 export interface MockProcess {
