@@ -5,7 +5,7 @@
 
 ## Overview
 
-Orchid (`orchid`) manages a background daemon that runs an OpenCode server. This allows you to orchidstrate AI tasks in the background without blocking your terminal.
+Orchid (`orchid`) manages a background daemon that runs an OpenCode server. This allows you to orchestrate AI tasks in the background without blocking your terminal.
 
 ## Installation
 
