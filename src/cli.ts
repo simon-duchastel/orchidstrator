@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 import { Command } from "@cliffy/command";
 
 import { initCommand } from "./cli/commands/init";
