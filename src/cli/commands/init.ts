@@ -11,5 +11,5 @@ export async function initAction(options: any) {
 
 export const initCommand: any = new Command()
   .description("Initialize orchid workspace with a git repository")
-  .arguments("<repository-url>")
+  .argument("<repository-url>", "Url of the git repository to clone, ex. git@github.com:simon-duchastel/orchid.git")
   .action(initAction);
