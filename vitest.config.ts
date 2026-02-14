@@ -13,4 +13,7 @@ export default {
   },
   clearMocks: true,
   restoreMocks: true,
+  deps: {
+    inline: [/vitest/],
+  },
 };

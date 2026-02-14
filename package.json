@@ -5,12 +5,12 @@
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "orchid": "dist/cli.js"
+    "orchid": "dist/cli/index.js"
   },
   "scripts": {
     "build": "tsup",
-    "dev": "tsx src/cli.ts",
-    "start": "node dist/cli.js",
+    "dev": "tsx src/cli/index.ts",
+    "start": "node dist/cli/index.js",
     "test": "vitest --run",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage",
@@ -35,6 +35,8 @@
   },
   "homepage": "https://github.com/simon-duchastel/orchid#readme",
   "dependencies": {
+    "@cliffy/command": "npm:@jsr/cliffy__command@^1.0.0-rc.8",
+    "@cliffy/table": "npm:@jsr/cliffy__table@^1.0.0",
     "@opencode-ai/sdk": "^1.1.12",
     "commander": "^12.0.0",
     "open": "^10.1.0",
