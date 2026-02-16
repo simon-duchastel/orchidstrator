@@ -6,7 +6,7 @@
  */
 
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync, unlinkSync, mkdirSync, openSync, closeSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync, mkdirSync, openSync, closeSync, readFile } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -18,6 +18,8 @@ import {
   getMainRepoDir,
 } from "./paths";
 import { validateOrchidStructure } from "./commands";
+import { findAvailablePort } from "./utils/networking";
+import { generateServerCredentials } from "./utils/credentials";
 
 /**
  * Check if a process with the given PID is running
@@ -68,6 +70,17 @@ export function isRunning(): boolean {
 }
 
 /**
+ * Extract the actual port from daemon log output
+ */
+function extractPortFromLogs(logContent: string): number | null {
+  const match = logContent.match(/OpenCode server running at http:\/\/[^:]+:(\d+)/);
+  if (match) {
+    return parseInt(match[1], 10);
+  }
+  return null;
+}
+
+/**
  * Start the daemon process
  *
  * @returns Object with success status and message
@@ -106,7 +119,18 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
   const orchidDir = getOrchidDir();
   const logFile = getLogFile();
   const errorLogFile = getErrorLogFile();
-  const port = getDirectoryPort();
+  const startPort = getDirectoryPort();
+
+  // Check if the start port is available and find an alternative if needed
+  let availablePort: number;
+  try {
+    availablePort = await findAvailablePort(startPort, "127.0.0.1", 100);
+  } catch (err) {
+    return {
+      success: false,
+      message: `Failed to find an available port: ${err}`,
+    };
+  }
 
   // Ensure orchid directory exists
   if (!existsSync(orchidDir)) {
@@ -124,8 +148,18 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
   const outFd = openSync(logFile, "a");
   const errFd = openSync(errorLogFile, "a");
 
+  // Generate secure credentials for authentication
+  const credentials = generateServerCredentials();
+
   try {
     let child;
+
+    // Environment variables for auth - these configure the OpenCode server's basic auth
+    const authEnv = {
+      ...process.env,
+      OPENCODE_SERVER_USERNAME: credentials.username,
+      OPENCODE_SERVER_PASSWORD: credentials.password,
+    };
 
     if (isDev) {
       // Development mode - use tsx
@@ -133,14 +167,14 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
       child = spawn("npx", ["tsx", devDaemonScript], {
         detached: true,
         stdio: ["ignore", outFd, errFd],
-        env: { ...process.env },
+        env: authEnv,
       });
     } else {
       // Production mode - run the compiled JS
       child = spawn("node", [daemonScript], {
         detached: true,
         stdio: ["ignore", outFd, errFd],
-        env: { ...process.env },
+        env: authEnv,
       });
     }
 
@@ -148,14 +182,26 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
     child.unref();
 
     // Wait a moment for the daemon to start and write its PID
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1500));
 
     // Verify it started
     const pid = getRunningPid();
     if (pid !== null) {
+      // Read the log file to get the actual port
+      let actualPort = availablePort;
+      try {
+        const logContent = readFileSync(logFile, "utf-8");
+        const extractedPort = extractPortFromLogs(logContent);
+        if (extractedPort !== null) {
+          actualPort = extractedPort;
+        }
+      } catch {
+        // Use the availablePort we calculated
+      }
+
       return {
         success: true,
-        message: `Orchid started (PID: ${pid})\nServer: http://127.0.0.1:${port}\nLogs: ${logFile}`,
+        message: `Orchid started (PID: ${pid})\nServer: http://127.0.0.1:${actualPort}\nLogs: ${logFile}`,
       };
     } else {
       return {

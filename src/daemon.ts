@@ -5,15 +5,17 @@
  * It is spawned by the CLI's `up` command and stopped by the `down` command.
  */
 
-import { createOpencode } from "@opencode-ai/sdk";
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { dirname } from "node:path";
-import { getPidFile, getLogFile, getErrorLogFile, getDirectoryPort, getOrchidDir } from "./paths.js";
+import { getPidFile, getDirectoryPort, getOrchidDir } from "./paths.js";
+import { createOpencodeServer, type OpencodeServerInstance } from "./opencode-server.js";
+
+// In-memory storage for credentials - never persisted to disk
+let serverInstance: OpencodeServerInstance | null = null;
 
 async function main() {
   const orchidDir = getOrchidDir();
   const pidFile = getPidFile();
-  const port = getDirectoryPort();
+  const startPort = getDirectoryPort();
   
   // Ensure the orchid directory exists
   if (!existsSync(orchidDir)) {
@@ -26,20 +28,23 @@ async function main() {
   console.log(`[orchid] Starting daemon (PID: ${process.pid})`);
 
   try {
-    // Create the OpenCode server and client
-    const opencode = await createOpencode({
+    // Create the OpenCode server with dynamic port allocation and auth
+    serverInstance = await createOpencodeServer({
       hostname: "127.0.0.1",
-      port: port,
+      startPort: startPort,
     });
 
-    console.log(`[orchid] OpenCode server running at ${opencode.server.url}`);
+    console.log(`[orchid] OpenCode server running at ${serverInstance.info.url}`);
+    console.log(`[orchid] Server secured with authentication (credentials in memory only)`);
 
     // Handle shutdown signals gracefully
     const shutdown = async (signal: string) => {
       console.log(`[orchid] Received ${signal}, shutting down...`);
       try {
-        opencode.server.close();
-        console.log("[orchid] OpenCode server closed");
+        if (serverInstance) {
+          await serverInstance.stop();
+          console.log("[orchid] OpenCode server closed");
+        }
       } catch (err) {
         console.error("[orchid] Error closing server:", err);
       }
@@ -56,8 +61,8 @@ async function main() {
   }
 }
 
-// Export main for testing
-export { main };
+// Export main and server instance for testing
+export { main, serverInstance };
 
 // Run main if this file is executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
