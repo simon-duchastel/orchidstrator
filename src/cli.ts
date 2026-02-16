@@ -1,16 +1,14 @@
 import { Command } from "@cliffy/command";
+import { flatHelp } from "cliffy-flat-help";
 
 import { initCommand } from "./cli/commands/init";
 import { upCommand } from "./cli/commands/up";
 import { downCommand } from "./cli/commands/down";
 import { statusCommand } from "./cli/commands/status";
 import { dashboardCommand } from "./cli/commands/dashboard";
-import { generateHelp } from "./cli/help";
 
 await new Command()
-  .help(function() {
-    return generateHelp(this);
-  })
+  .help(flatHelp())
   .name("orchid")
   .action(function () {
     this.showHelp();
