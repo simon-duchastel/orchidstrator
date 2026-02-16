@@ -16,11 +16,11 @@ vi.mock("node:crypto", () => ({
 import { randomBytes } from "node:crypto";
 
 describe("credentials utilities", () => {
-  let mockRandomBytes: Mock<[number], Buffer>;
+  let mockRandomBytes: Mock;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockRandomBytes = vi.mocked(randomBytes) as unknown as Mock<[number], Buffer>;
+    mockRandomBytes = vi.mocked(randomBytes);
   });
 
   afterEach(() => {
