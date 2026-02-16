@@ -7,6 +7,10 @@ import {
   type OpencodeServerInfo,
 } from "./opencode-server";
 import { findAvailablePort } from "./utils/networking";
+import {
+  generateServerCredentials,
+  validateCredentials,
+} from "./utils/credentials";
 
 // Mock dependencies
 vi.mock("@opencode-ai/sdk", () => ({
@@ -17,9 +21,20 @@ vi.mock("./utils/networking", () => ({
   findAvailablePort: vi.fn(),
 }));
 
+vi.mock("./utils/credentials", () => ({
+  generateServerCredentials: vi.fn(),
+  validateCredentials: vi.fn(),
+  CREDENTIAL_LENGTH: 32,
+}));
+
 import { createOpencode } from "@opencode-ai/sdk";
 
 describe("opencode-server", () => {
+  const mockCredentials = {
+    username: "a".repeat(32),
+    password: "b".repeat(32),
+  };
+
   const mockServer = {
     url: "http://127.0.0.1:4096",
     close: vi.fn(),
@@ -30,6 +45,8 @@ describe("opencode-server", () => {
 
     // Setup default mocks
     vi.mocked(findAvailablePort).mockResolvedValue(4096);
+    vi.mocked(generateServerCredentials).mockReturnValue(mockCredentials);
+    vi.mocked(validateCredentials).mockReturnValue(true);
     vi.mocked(createOpencode).mockResolvedValue({
       server: mockServer,
     } as any);
@@ -83,13 +100,24 @@ describe("opencode-server", () => {
       );
     });
 
-    it("should create OpenCode server with hostname and port only", async () => {
+    it("should generate and validate credentials", async () => {
       await createOpencodeServer({ startPort: 4096 });
 
-      // Auth is NOT passed to createOpencode - it's handled via env vars
+      expect(generateServerCredentials).toHaveBeenCalled();
+      expect(validateCredentials).toHaveBeenCalledWith(mockCredentials);
+    });
+
+    it("should create OpenCode server with auth configuration", async () => {
+      await createOpencodeServer({ startPort: 4096 });
+
       expect(createOpencode).toHaveBeenCalledWith({
         hostname: "127.0.0.1",
         port: 4096,
+        auth: {
+          type: "basic",
+          username: mockCredentials.username,
+          password: mockCredentials.password,
+        },
       });
     });
 
@@ -102,6 +130,7 @@ describe("opencode-server", () => {
         port: 4096,
         hostname: "127.0.0.1",
       });
+      expect(result.credentials).toBe(mockCredentials);
       expect(typeof result.stop).toBe("function");
     });
 
@@ -134,6 +163,16 @@ describe("opencode-server", () => {
       );
     });
 
+    it("should throw if validateCredentials fails", async () => {
+      vi.mocked(validateCredentials).mockImplementation(() => {
+        throw new Error("Invalid credentials");
+      });
+
+      await expect(createOpencodeServer({ startPort: 4096 })).rejects.toThrow(
+        "Invalid credentials"
+      );
+    });
+
     it("should throw if createOpencode fails", async () => {
       vi.mocked(createOpencode).mockRejectedValue(
         new Error("Server creation failed")
@@ -147,20 +186,24 @@ describe("opencode-server", () => {
 
   describe("getAuthHeader", () => {
     it("should create correct Basic auth header", () => {
-      const username = "testuser";
-      const password = "testpass";
+      const credentials = {
+        username: "testuser",
+        password: "testpass",
+      };
 
-      const header = getAuthHeader(username, password);
+      const header = getAuthHeader(credentials);
 
       const expected = `Basic ${Buffer.from("testuser:testpass").toString("base64")}`;
       expect(header).toBe(expected);
     });
 
     it("should handle credentials with special characters", () => {
-      const username = "user@domain.com";
-      const password = "p@ss:w0rd!";
+      const credentials = {
+        username: "user@domain.com",
+        password: "p@ss:w0rd!",
+      };
 
-      const header = getAuthHeader(username, password);
+      const header = getAuthHeader(credentials);
 
       const expected = `Basic ${Buffer.from("user@domain.com:p@ss:w0rd!").toString("base64")}`;
       expect(header).toBe(expected);
@@ -174,10 +217,12 @@ describe("opencode-server", () => {
         port: 4096,
         hostname: "127.0.0.1",
       };
-      const username = "testuser";
-      const password = "testpass";
+      const credentials = {
+        username: "testuser",
+        password: "testpass",
+      };
 
-      const url = createAuthenticatedUrl(info, username, password);
+      const url = createAuthenticatedUrl(info, credentials);
 
       expect(url).toBe("http://testuser:testpass@127.0.0.1:4096/");
     });
@@ -188,10 +233,12 @@ describe("opencode-server", () => {
         port: 8443,
         hostname: "example.com",
       };
-      const username = "user";
-      const password = "pass";
+      const credentials = {
+        username: "user",
+        password: "pass",
+      };
 
-      const url = createAuthenticatedUrl(info, username, password);
+      const url = createAuthenticatedUrl(info, credentials);
 
       expect(url).toBe("https://user:pass@example.com:8443/");
     });
@@ -202,10 +249,12 @@ describe("opencode-server", () => {
         port: 4096,
         hostname: "127.0.0.1",
       };
-      const username = "user@domain";
-      const password = "pass#word";
+      const credentials = {
+        username: "user@domain",
+        password: "pass#word",
+      };
 
-      const url = createAuthenticatedUrl(info, username, password);
+      const url = createAuthenticatedUrl(info, credentials);
 
       // URL constructor will encode special characters
       expect(url).toContain("user%40domain");
