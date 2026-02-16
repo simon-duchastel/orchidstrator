@@ -19,6 +19,7 @@ import {
 } from "./paths";
 import { validateOrchidStructure } from "./commands";
 import { findAvailablePort } from "./utils/networking";
+import { generateServerCredentials } from "./utils/credentials";
 
 /**
  * Check if a process with the given PID is running
@@ -147,8 +148,18 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
   const outFd = openSync(logFile, "a");
   const errFd = openSync(errorLogFile, "a");
 
+  // Generate secure credentials for authentication
+  const credentials = generateServerCredentials();
+
   try {
     let child;
+
+    // Environment variables for auth - these configure the OpenCode server's basic auth
+    const authEnv = {
+      ...process.env,
+      OPENCODE_SERVER_USERNAME: credentials.username,
+      OPENCODE_SERVER_PASSWORD: credentials.password,
+    };
 
     if (isDev) {
       // Development mode - use tsx
@@ -156,14 +167,14 @@ export async function startDaemon(): Promise<{ success: boolean; message: string
       child = spawn("npx", ["tsx", devDaemonScript], {
         detached: true,
         stdio: ["ignore", outFd, errFd],
-        env: { ...process.env },
+        env: authEnv,
       });
     } else {
       // Production mode - run the compiled JS
       child = spawn("node", [daemonScript], {
         detached: true,
         stdio: ["ignore", outFd, errFd],
-        env: { ...process.env },
+        env: authEnv,
       });
     }
 

@@ -3,20 +3,17 @@
  *
  * Manages the lifecycle of an OpenCode server instance with:
  * - Dynamic port allocation (finding available ports)
- * - Secure authentication (random credentials)
  * - Server lifecycle management (start/stop)
  *
- * Credentials are stored only in memory and never persisted to disk,
- * ensuring only orchid can communicate with this server instance.
+ * Note: Authentication is configured via environment variables:
+ * - OPENCODE_SERVER_PASSWORD: Required for basic auth
+ * - OPENCODE_SERVER_USERNAME: Optional (defaults to "opencode")
+ *
+ * These should be set by the process that spawns the daemon.
  */
 
 import { createOpencode } from "@opencode-ai/sdk";
 import { findAvailablePort } from "./utils/networking.js";
-import {
-  generateServerCredentials,
-  type ServerCredentials,
-  validateCredentials,
-} from "./utils/credentials.js";
 
 export interface OpencodeServerConfig {
   /** Hostname to bind to (default: 127.0.0.1) */
@@ -39,8 +36,8 @@ export interface OpencodeServerInfo {
 /**
  * OpenCode Server Instance
  *
- * Encapsulates a running OpenCode server with its configuration
- * and authentication credentials.
+ * Encapsulates a running OpenCode server with its configuration.
+ * Authentication is handled via environment variables set by the parent process.
  */
 export interface OpencodeServerInstance {
   /** The underlying OpenCode server object */
@@ -50,8 +47,6 @@ export interface OpencodeServerInstance {
   };
   /** Server connection information */
   info: OpencodeServerInfo;
-  /** Authentication credentials (stored only in memory) */
-  credentials: ServerCredentials;
   /** Stop the server gracefully */
   stop: () => Promise<void>;
 }
@@ -61,11 +56,12 @@ export interface OpencodeServerInstance {
  *
  * This function will:
  * 1. Find an available port starting from the provided startPort
- * 2. Generate cryptographically secure random credentials
- * 3. Start the OpenCode server with authentication enabled
+ * 2. Start the OpenCode server
  *
- * The credentials are only stored in memory and never written to disk,
- * ensuring only the orchid process that started the server can access it.
+ * IMPORTANT: Authentication must be configured via environment variables
+ * before calling this function:
+ * - OPENCODE_SERVER_PASSWORD: Required for basic auth
+ * - OPENCODE_SERVER_USERNAME: Optional (defaults to "opencode")
  *
  * @param config - Server configuration
  * @returns Promise that resolves to the server instance
@@ -80,19 +76,11 @@ export async function createOpencodeServer(
   // Find an available port
   const port = await findAvailablePort(config.startPort, hostname, maxAttempts);
 
-  // Generate secure credentials
-  const credentials = generateServerCredentials();
-  validateCredentials(credentials);
-
-  // Create the OpenCode server with authentication
+  // Create the OpenCode server
+  // Note: Auth is configured via OPENCODE_SERVER_PASSWORD env var
   const opencode = await createOpencode({
     hostname,
     port,
-    auth: {
-      type: "basic",
-      username: credentials.username,
-      password: credentials.password,
-    },
   });
 
   const info: OpencodeServerInfo = {
@@ -115,7 +103,6 @@ export async function createOpencodeServer(
   return {
     server: opencode.server,
     info,
-    credentials,
     stop,
   };
 }
@@ -123,11 +110,12 @@ export async function createOpencodeServer(
 /**
  * Get the Authorization header for making requests to the server.
  *
- * @param credentials - The server credentials
+ * @param username - The username for basic auth
+ * @param password - The password for basic auth
  * @returns The Authorization header value
  */
-export function getAuthHeader(credentials: ServerCredentials): string {
-  const authString = `${credentials.username}:${credentials.password}`;
+export function getAuthHeader(username: string, password: string): string {
+  const authString = `${username}:${password}`;
   return `Basic ${Buffer.from(authString).toString("base64")}`;
 }
 
@@ -135,15 +123,17 @@ export function getAuthHeader(credentials: ServerCredentials): string {
  * Create a server URL with embedded credentials for authenticated access.
  *
  * @param info - Server connection info
- * @param credentials - Server credentials
+ * @param username - The username for basic auth
+ * @param password - The password for basic auth
  * @returns URL with embedded credentials
  */
 export function createAuthenticatedUrl(
   info: OpencodeServerInfo,
-  credentials: ServerCredentials
+  username: string,
+  password: string
 ): string {
   const url = new URL(info.url);
-  url.username = credentials.username;
-  url.password = credentials.password;
+  url.username = username;
+  url.password = password;
   return url.toString();
 }
