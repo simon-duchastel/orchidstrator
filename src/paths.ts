@@ -70,7 +70,7 @@ export function getMainRepoDir(cwdProvider?: () => string): string {
  * Path to the worktrees directory
  */
 export function getWorktreesDir(cwdProvider?: () => string): string {
-  return join(getOrchidDir(cwdProvider), 'worktrees');
+  return join(resolve(cwdProvider ? cwdProvider() : process.cwd()), 'worktrees');
 }
 
 

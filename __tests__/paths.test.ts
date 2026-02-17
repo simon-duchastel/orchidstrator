@@ -167,7 +167,7 @@ describe('paths.ts - Pure Functions', () => {
 
     it('should generate correct worktrees directory path', () => {
       const worktreesDir = getWorktreesDir(() => '/test/directory');
-      expect(worktreesDir).toBe('/test/directory/.orchid/worktrees');
+      expect(worktreesDir).toBe('/test/directory/worktrees');
     });
   });
 
@@ -193,7 +193,7 @@ describe('paths.ts - Pure Functions', () => {
       expect(port1).toBeLessThanOrEqual(9999);
       expect(orchidDir1).toBe('/consistent/project/directory/.orchid');
       expect(mainRepoDir1).toBe('/consistent/project/directory/.orchid/main');
-      expect(worktreesDir1).toBe('/consistent/project/directory/.orchid/worktrees');
+      expect(worktreesDir1).toBe('/consistent/project/directory/worktrees');
     });
 
     it('should handle edge case paths consistently', () => {

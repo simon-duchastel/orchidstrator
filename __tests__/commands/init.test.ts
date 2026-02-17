@@ -35,7 +35,7 @@ vi.mock('../../src/paths', () => ({
   getOrchidDir: () => '/tmp/test-orchid/.orchid',
   getPidFile: () => '/tmp/test-orchid/.orchid/orchid.pid',
   getMainRepoDir: () => '/tmp/test-orchid/.orchid/main',
-  getWorktreesDir: () => '/tmp/test-orchid/.orchid/worktrees',
+  getWorktreesDir: () => '/tmp/test-orchid/worktrees',
 }));
 
 describe('init.ts - Orchid Initialization', () => {

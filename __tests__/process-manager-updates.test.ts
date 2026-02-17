@@ -29,7 +29,7 @@ vi.mock('../src/paths', () => ({
   getLogFile: () => '/tmp/test-orchid-daemon/.orchid/orchid.log',
   getErrorLogFile: () => '/tmp/test-orchid-daemon/.orchid/orchid.error.log',
   getMainRepoDir: () => '/tmp/test-orchid-daemon/.orchid/main',
-  getWorktreesDir: () => '/tmp/test-orchid-daemon/.orchid/worktrees',
+  getWorktreesDir: () => '/tmp/test-orchid-daemon/worktrees',
   getDirectoryPort: () => 5678,
 }));
 
