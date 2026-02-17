@@ -6,11 +6,12 @@
  */
 
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { getPidFile, getDirectoryPort, getOrchidDir } from "./paths.js";
+import { getPidFile, getDirectoryPort, getOrchidDir, getMainRepoDir } from "./paths.js";
 import { createOpencodeServer, type OpencodeServerInstance } from "./opencode-server.js";
+import { AgentOrchestrator } from "./agent-orchestrator.js";
 
-// In-memory storage for credentials - never persisted to disk
 let serverInstance: OpencodeServerInstance | null = null;
+let orchestrator: AgentOrchestrator | null = null;
 
 async function main() {
   const orchidDir = getOrchidDir();
@@ -37,10 +38,22 @@ async function main() {
     console.log(`[orchid] OpenCode server running at ${serverInstance.info.url}`);
     console.log(`[orchid] Server secured with authentication (credentials in memory only)`);
 
+    const mainRepoDir = getMainRepoDir();
+    orchestrator = new AgentOrchestrator({ cwdProvider: () => mainRepoDir });
+
+    orchestrator.start().catch((err) => {
+      console.error("[orchid] Orchestrator error:", err);
+    });
+    console.log("[orchid] Agent orchestrator started");
+
     // Handle shutdown signals gracefully
     const shutdown = async (signal: string) => {
       console.log(`[orchid] Received ${signal}, shutting down...`);
       try {
+        if (orchestrator) {
+          await orchestrator.stop();
+          console.log("[orchid] Orchestrator stopped");
+        }
         if (serverInstance) {
           await serverInstance.stop();
           console.log("[orchid] OpenCode server closed");
@@ -62,7 +75,7 @@ async function main() {
 }
 
 // Export main and server instance for testing
-export { main, serverInstance };
+export { main, serverInstance, orchestrator };
 
 // Run main if this file is executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
