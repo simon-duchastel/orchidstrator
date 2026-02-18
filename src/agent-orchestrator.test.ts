@@ -165,6 +165,14 @@ describe("AgentOrchestrator", () => {
       mocks.mockUnassignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
       mocks.mockWorktreeRemove.mockResolvedValue(true);
+      mocks.mockSessionCreate.mockResolvedValue({
+        sessionId: "session-stop",
+        taskId: "task-stop",
+        workingDirectory: "/test/worktrees/task-stop",
+        client: {},
+        createdAt: new Date(),
+        status: "running",
+      });
 
       const streamIterator = (async function* () {
         yield [{ id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" }];
@@ -187,6 +195,14 @@ describe("AgentOrchestrator", () => {
     it("should start an agent for a new open task", async () => {
       mocks.mockAssignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
+      mocks.mockSessionCreate.mockResolvedValue({
+        sessionId: "session-1",
+        taskId: "task-1",
+        workingDirectory: "/test/worktrees/task-1",
+        client: {},
+        createdAt: new Date(),
+        status: "running",
+      });
 
       const streamIterator = (async function* () {
         yield [{ id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" }];
@@ -208,6 +224,14 @@ describe("AgentOrchestrator", () => {
     it("should not start duplicate agents for the same task", async () => {
       mocks.mockAssignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
+      mocks.mockSessionCreate.mockResolvedValue({
+        sessionId: "session-1",
+        taskId: "task-1",
+        workingDirectory: "/test/worktrees/task-1",
+        client: {},
+        createdAt: new Date(),
+        status: "running",
+      });
 
       const task = { id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" };
       const streamIterator = (async function* () {
@@ -229,6 +253,14 @@ describe("AgentOrchestrator", () => {
       mocks.mockUnassignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
       mocks.mockWorktreeRemove.mockResolvedValue(true);
+      mocks.mockSessionCreate.mockResolvedValue({
+        sessionId: "session-1",
+        taskId: "task-1",
+        workingDirectory: "/test/worktrees/task-1",
+        client: {},
+        createdAt: new Date(),
+        status: "running",
+      });
 
       const streamIterator = (async function* () {
         yield [{ id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" }];
@@ -248,6 +280,14 @@ describe("AgentOrchestrator", () => {
       mocks.mockUnassignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
       mocks.mockWorktreeRemove.mockResolvedValue(true);
+      mocks.mockSessionCreate.mockResolvedValue({
+        sessionId: "session-test",
+        taskId: "task-test",
+        workingDirectory: "/test/worktrees/task-test",
+        client: {},
+        createdAt: new Date(),
+        status: "running",
+      });
 
       const streamIterator = (async function* () {
         yield [
@@ -272,6 +312,14 @@ describe("AgentOrchestrator", () => {
     it("should create a worktree when starting an agent", async () => {
       mocks.mockAssignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
+      mocks.mockSessionCreate.mockResolvedValue({
+        sessionId: "session-123",
+        taskId: "task-123",
+        workingDirectory: "/test/worktrees/task-123",
+        client: {},
+        createdAt: new Date(),
+        status: "running",
+      });
 
       const streamIterator = (async function* () {
         yield [{ id: "task-123", frontmatter: { title: "Test" }, description: "", status: "open" }];
@@ -296,6 +344,14 @@ describe("AgentOrchestrator", () => {
       mocks.mockUnassignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
       mocks.mockWorktreeRemove.mockResolvedValue(true);
+      mocks.mockSessionCreate.mockResolvedValue({
+        sessionId: "session-123",
+        taskId: "task-123",
+        workingDirectory: "/test/worktrees/task-123",
+        client: {},
+        createdAt: new Date(),
+        status: "running",
+      });
 
       const streamIterator = (async function* () {
         yield [{ id: "task-123", frontmatter: { title: "Test" }, description: "", status: "open" }];
@@ -317,6 +373,14 @@ describe("AgentOrchestrator", () => {
       mocks.mockUnassignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
       mocks.mockWorktreeRemove.mockResolvedValue(true);
+      mocks.mockSessionCreate.mockResolvedValue({
+        sessionId: "session-456",
+        taskId: "task-456",
+        workingDirectory: "/test/worktrees/task-456",
+        client: {},
+        createdAt: new Date(),
+        status: "running",
+      });
 
       const streamIterator = (async function* () {
         yield [{ id: "task-456", frontmatter: { title: "Test" }, description: "", status: "open" }];
@@ -338,6 +402,14 @@ describe("AgentOrchestrator", () => {
       mocks.mockUnassignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
       mocks.mockWorktreeRemove.mockRejectedValue(new Error("Failed to remove worktree"));
+      mocks.mockSessionCreate.mockResolvedValue({
+        sessionId: "session-789",
+        taskId: "task-789",
+        workingDirectory: "/test/worktrees/task-789",
+        client: {},
+        createdAt: new Date(),
+        status: "running",
+      });
 
       const streamIterator = (async function* () {
         yield [{ id: "task-789", frontmatter: { title: "Test" }, description: "", status: "open" }];
@@ -371,6 +443,14 @@ describe("AgentOrchestrator", () => {
     it("should create unique worktree paths for different tasks", async () => {
       mocks.mockAssignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
+      mocks.mockSessionCreate.mockResolvedValue({
+        sessionId: "session-alpha",
+        taskId: "task-alpha",
+        workingDirectory: "/test/worktrees/task-alpha",
+        client: {},
+        createdAt: new Date(),
+        status: "running",
+      });
 
       const streamIterator = (async function* () {
         yield [
@@ -475,7 +555,7 @@ describe("AgentOrchestrator", () => {
       expect(mocks.mockSessionRemove).toHaveBeenCalledWith("task-stop");
     });
 
-    it("should continue agent startup even if session creation fails", async () => {
+    it("should not start agent if session creation fails", async () => {
       mocks.mockAssignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
       mocks.mockSessionCreate.mockRejectedValue(new Error("Session creation failed"));
@@ -490,9 +570,8 @@ describe("AgentOrchestrator", () => {
       orchestrator.start();
       await vi.runAllTimersAsync();
 
-      // Agent should still start even if session creation failed
-      expect(orchestrator.getRunningAgents()).toHaveLength(1);
-      expect(orchestrator.getRunningAgents()[0].session).toBeUndefined();
+      // Agent should NOT start when session creation fails
+      expect(orchestrator.getRunningAgents()).toHaveLength(0);
 
       consoleSpy.mockRestore();
     });

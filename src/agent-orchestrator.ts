@@ -176,8 +176,8 @@ export class AgentOrchestrator {
       throw error;
     }
 
-    // Create an OpenCode session for this agent
-    let session: AgentSession | undefined;
+    // Create an OpenCode session for this agent (required)
+    let session: AgentSession;
     try {
       session = await this.sessionManager.createSession(taskId, {
         title: `Agent Session: ${agentId}`,
@@ -185,7 +185,13 @@ export class AgentOrchestrator {
       console.log(`[orchestrator] Created OpenCode session ${session.sessionId} for task ${taskId}`);
     } catch (error) {
       console.error(`[orchestrator] Failed to create OpenCode session for task ${taskId}:`, error);
-      // Continue without session - the agent can still work, just without session isolation
+      // Clean up the worktree since session creation failed
+      try {
+        await this.worktreeManager.remove(worktreePath, { force: true });
+      } catch (cleanupError) {
+        console.error(`[orchestrator] Failed to clean up worktree after session creation failed:`, cleanupError);
+      }
+      throw error;
     }
 
     await this.taskManager.assignTask(taskId, agentId);
