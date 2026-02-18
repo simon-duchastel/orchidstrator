@@ -25,8 +25,7 @@ export interface AgentSession {
 }
 
 export interface CreateSessionOptions {
-  /** Optional session title */
-  title?: string;
+  // No options needed - title is always set to taskId
 }
 
 export interface OpencodeSessionManagerOptions {
@@ -90,7 +89,7 @@ export class OpencodeSessionManager {
           directory: workingDirectory,
         },
         body: {
-          title: options.title ?? `Agent Session for ${taskId}`,
+          title: taskId,
         },
       });
 
@@ -239,37 +238,34 @@ export class OpencodeSessionManager {
       const existingSessions = response.data as Session[];
 
       for (const session of existingSessions) {
-        // Extract taskId from title if it matches our pattern "Agent Session: {taskId}-implementor"
-        const titleMatch = session.title.match(/^Agent Session: (.+)-implementor$/);
-        if (titleMatch) {
-          const taskId = titleMatch[1];
+        // Use the title as taskId directly (we set title = taskId when creating)
+        const taskId = session.title;
 
-          // Check if worktree directory exists
-          const workingDirectory = join(this.sessionsDir, taskId);
-          if (!existsSync(workingDirectory)) {
-            console.log(`[session-manager] Skipping session ${session.id} - worktree not found at ${workingDirectory}`);
-            continue;
-          }
-
-          // Check if we already have this session tracked
-          if (this.sessions.has(taskId)) {
-            console.log(`[session-manager] Session for task ${taskId} already tracked, skipping`);
-            continue;
-          }
-
-          const agentSession: AgentSession = {
-            sessionId: session.id,
-            taskId,
-            workingDirectory,
-            client: this.client,
-            createdAt: new Date(session.time.created * 1000),
-            status: "running",
-          };
-
-          this.sessions.set(taskId, agentSession);
-          recoveredSessions.push(agentSession);
-          console.log(`[session-manager] Recovered session ${session.id} for task ${taskId}`);
+        // Check if worktree directory exists
+        const workingDirectory = join(this.sessionsDir, taskId);
+        if (!existsSync(workingDirectory)) {
+          console.log(`[session-manager] Skipping session ${session.id} - worktree not found at ${workingDirectory}`);
+          continue;
         }
+
+        // Check if we already have this session tracked
+        if (this.sessions.has(taskId)) {
+          console.log(`[session-manager] Session for task ${taskId} already tracked, skipping`);
+          continue;
+        }
+
+        const agentSession: AgentSession = {
+          sessionId: session.id,
+          taskId,
+          workingDirectory,
+          client: this.client,
+          createdAt: new Date(session.time.created * 1000),
+          status: "running",
+        };
+
+        this.sessions.set(taskId, agentSession);
+        recoveredSessions.push(agentSession);
+        console.log(`[session-manager] Recovered session ${session.id} for task ${taskId}`);
       }
 
       console.log(`[session-manager] Recovered ${recoveredSessions.length} existing sessions`);

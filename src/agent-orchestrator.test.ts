@@ -518,9 +518,7 @@ describe("AgentOrchestrator", () => {
 
       expect(mocks.mockSessionCreate).toHaveBeenCalledWith(
         "task-session",
-        expect.objectContaining({
-          title: "Agent Session: task-session-implementor",
-        })
+        {}
       );
 
       const agents = orchestrator.getRunningAgents();

@@ -77,9 +77,7 @@ describe("OpencodeSessionManager", () => {
       };
       mocks.mockSessionCreate.mockResolvedValue(mockResponse);
 
-      const session = await sessionManager.createSession("task-1", {
-        title: "Test Session",
-      });
+      const session = await sessionManager.createSession("task-1", {});
 
       expect(session.sessionId).toBe("session-123");
       expect(session.taskId).toBe("task-1");
@@ -87,24 +85,22 @@ describe("OpencodeSessionManager", () => {
       expect(session.workingDirectory).toBe("/test/sessions/task-1");
       expect(mocks.mockSessionCreate).toHaveBeenCalledWith({
         query: { directory: "/test/sessions/task-1" },
-        body: { title: "Test Session" },
+        body: { title: "task-1" },
       });
     });
 
-    it("should use default title if not provided", async () => {
+    it("should use taskId as title", async () => {
       const mockResponse = {
         data: { id: "session-456" },
         error: null,
       };
       mocks.mockSessionCreate.mockResolvedValue(mockResponse);
 
-      await sessionManager.createSession("task-2", {
-        
-      });
+      await sessionManager.createSession("task-2", {});
 
       expect(mocks.mockSessionCreate).toHaveBeenCalledWith({
         query: { directory: "/test/sessions/task-2" },
-        body: { title: "Agent Session for task-2" },
+        body: { title: "task-2" },
       });
     });
 
@@ -115,9 +111,7 @@ describe("OpencodeSessionManager", () => {
       };
       mocks.mockSessionCreate.mockResolvedValue(mockResponse);
 
-      await sessionManager.createSession("task-3", {
-        
-      });
+      await sessionManager.createSession("task-3", {});
 
       await expect(
         sessionManager.createSession("task-3", {  })
@@ -152,9 +146,7 @@ describe("OpencodeSessionManager", () => {
         error: null,
       });
 
-      const session = await sessionManager.createSession("task-6", {
-        
-      });
+      const session = await sessionManager.createSession("task-6", {});
 
       expect(session.sessionId).toBe("nested-session-123");
     });
@@ -165,9 +157,7 @@ describe("OpencodeSessionManager", () => {
         error: null,
       });
 
-      const session = await sessionManager.createSession("task-7", {
-        
-      });
+      const session = await sessionManager.createSession("task-7", {});
 
       expect(session.sessionId).toBe("alt-session-123");
     });
@@ -183,9 +173,7 @@ describe("OpencodeSessionManager", () => {
         error: null,
       });
 
-      await sessionManager.createSession("task-8", {
-        
-      });
+      await sessionManager.createSession("task-8", {});
 
       expect(mocks.mockMkdirSync).toHaveBeenCalledWith(
         "/test/sessions/task-8",
@@ -201,9 +189,7 @@ describe("OpencodeSessionManager", () => {
         error: null,
       });
 
-      await sessionManager.createSession("task-get", {
-        
-      });
+      await sessionManager.createSession("task-get", {});
 
       const session = sessionManager.getSession("task-get");
 
@@ -246,9 +232,7 @@ describe("OpencodeSessionManager", () => {
         error: null,
       });
 
-      await sessionManager.createSession("task-check", {
-        
-      });
+      await sessionManager.createSession("task-check", {});
 
       expect(sessionManager.hasSession("task-check")).toBe(true);
     });
@@ -266,9 +250,7 @@ describe("OpencodeSessionManager", () => {
       });
       mocks.mockSessionDelete.mockResolvedValue({ data: {}, error: null });
 
-      await sessionManager.createSession("task-remove", {
-        
-      });
+      await sessionManager.createSession("task-remove", {});
 
       await sessionManager.removeSession("task-remove");
 
@@ -294,9 +276,7 @@ describe("OpencodeSessionManager", () => {
 
       const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-      await sessionManager.createSession("task-fail", {
-        
-      });
+      await sessionManager.createSession("task-fail", {});
 
       await sessionManager.removeSession("task-fail");
 
@@ -351,9 +331,7 @@ describe("OpencodeSessionManager", () => {
         error: null,
       });
 
-      await sessionManager.createSession("task-count", {
-        
-      });
+      await sessionManager.createSession("task-count", {});
 
       expect(sessionManager.getSessionCount()).toBe(1);
     });

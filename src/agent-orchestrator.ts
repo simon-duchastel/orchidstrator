@@ -179,9 +179,7 @@ export class AgentOrchestrator {
     // Create an OpenCode session for this agent (required)
     let session: AgentSession;
     try {
-      session = await this.sessionManager.createSession(taskId, {
-        title: `Agent Session: ${agentId}`,
-      });
+      session = await this.sessionManager.createSession(taskId, {});
       console.log(`[orchestrator] Created OpenCode session ${session.sessionId} for task ${taskId}`);
     } catch (error) {
       console.error(`[orchestrator] Failed to create OpenCode session for task ${taskId}:`, error);
