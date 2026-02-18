@@ -41,13 +41,11 @@ export class AgentOrchestrator {
   private worktreeManager: WorktreeManager;
   private sessionManager: OpencodeSessionManager;
   private cwdProvider: () => string;
-  private opencodeBaseUrl: string;
 
   constructor(options: AgentOrchestratorOptions) {
     this.cwdProvider = options.cwdProvider ?? (() => process.cwd());
     this.taskManager = new TaskManager({ cwdProvider: this.cwdProvider });
     this.worktreeManager = options.worktreeManager ?? new WorktreeManager(this.cwdProvider());
-    this.opencodeBaseUrl = options.opencodeBaseUrl;
     
     // Initialize session manager with the worktrees directory
     const worktreesDir = getWorktreesDir(this.cwdProvider);
@@ -72,7 +70,7 @@ export class AgentOrchestrator {
       console.log(`[orchestrator] Recovered ${recoveredSessions.length} existing sessions from OpenCode server`);
 
       // Reconcile recovered sessions with open tasks
-      const openTasks = await this.taskManager.list({ status: "open" });
+      const openTasks = await this.taskManager.listTasks({ status: "open" });
       const openTaskIds = new Set(openTasks.map((t: Task) => t.id));
 
       for (const session of recoveredSessions) {
