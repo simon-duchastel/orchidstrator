@@ -42,7 +42,7 @@ describe("OpencodeSessionManager", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.mockExistsSync.mockReturnValue(true);
-    sessionManager = new OpencodeSessionManager({ sessionsDir: testSessionsDir });
+    sessionManager = new OpencodeSessionManager({ sessionsDir: testSessionsDir, baseUrl: "http://localhost:4096" });
   });
 
   afterEach(() => {
@@ -53,7 +53,7 @@ describe("OpencodeSessionManager", () => {
     it("should create sessions directory if it does not exist", () => {
       mocks.mockExistsSync.mockReturnValue(false);
       
-      new OpencodeSessionManager({ sessionsDir: testSessionsDir });
+      new OpencodeSessionManager({ sessionsDir: testSessionsDir, baseUrl: "http://localhost:4096" });
 
       expect(mocks.mockExistsSync).toHaveBeenCalledWith(testSessionsDir);
       expect(mocks.mockMkdirSync).toHaveBeenCalledWith(testSessionsDir, { recursive: true });
@@ -62,7 +62,7 @@ describe("OpencodeSessionManager", () => {
     it("should not create sessions directory if it already exists", () => {
       mocks.mockExistsSync.mockReturnValue(true);
       
-      new OpencodeSessionManager({ sessionsDir: testSessionsDir });
+      new OpencodeSessionManager({ sessionsDir: testSessionsDir, baseUrl: "http://localhost:4096" });
 
       expect(mocks.mockExistsSync).toHaveBeenCalledWith(testSessionsDir);
       expect(mocks.mockMkdirSync).not.toHaveBeenCalled();
