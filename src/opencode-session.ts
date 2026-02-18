@@ -5,7 +5,7 @@
  * Each agent gets its own isolated session associated with its worktree directory.
  */
 
-import { createOpencodeClient, type OpencodeClient } from "@opencode-ai/sdk";
+import { createOpencodeClient, type OpencodeClient, type Session } from "@opencode-ai/sdk";
 import { join } from "node:path";
 import { mkdirSync, existsSync } from "node:fs";
 
@@ -25,8 +25,6 @@ export interface AgentSession {
 }
 
 export interface CreateSessionOptions {
-  /** Base URL for the OpenCode server */
-  baseUrl: string;
   /** Optional session title */
   title?: string;
 }
@@ -34,6 +32,8 @@ export interface CreateSessionOptions {
 export interface OpencodeSessionManagerOptions {
   /** Base directory for all sessions (typically the worktrees directory) */
   sessionsDir: string;
+  /** Base URL for the OpenCode server (required) */
+  baseUrl: string;
 }
 
 /**
@@ -45,9 +45,13 @@ export interface OpencodeSessionManagerOptions {
 export class OpencodeSessionManager {
   private sessions: Map<string, AgentSession> = new Map();
   private sessionsDir: string;
+  private client: OpencodeClient;
 
   constructor(options: OpencodeSessionManagerOptions) {
     this.sessionsDir = options.sessionsDir;
+    this.client = createOpencodeClient({
+      baseUrl: options.baseUrl,
+    });
 
     // Ensure the sessions directory exists
     if (!existsSync(this.sessionsDir)) {
@@ -79,14 +83,9 @@ export class OpencodeSessionManager {
     }
 
     try {
-      // Create an OpenCode client connected to the server
-      const client = createOpencodeClient({
-        baseUrl: options.baseUrl,
-      });
-
-      // Create a new session via the SDK
+      // Create a new session via the SDK using the stored client
       // Parameters are passed via query for directory and body for other options
-      const createResponse = await client.session.create({
+      const createResponse = await this.client.session.create({
         query: {
           directory: workingDirectory,
         },
@@ -110,7 +109,7 @@ export class OpencodeSessionManager {
         sessionId,
         taskId,
         workingDirectory,
-        client,
+        client: this.client,
         createdAt: new Date(),
         status: "running",
       };
@@ -217,6 +216,68 @@ export class OpencodeSessionManager {
 
     // Remove from our tracking
     this.sessions.delete(taskId);
+  }
+
+  /**
+   * Recover existing sessions from the OpenCode server.
+   * Queries the server for existing sessions and reconnects to ones
+   * that match our task pattern (by title prefix).
+   *
+   * @returns Array of recovered sessions
+   */
+  async recoverSessions(): Promise<AgentSession[]> {
+    const recoveredSessions: AgentSession[] = [];
+
+    try {
+      const response = await this.client.session.list({});
+
+      if (response.error) {
+        console.error("[session-manager] Failed to list existing sessions:", response.error);
+        return recoveredSessions;
+      }
+
+      const existingSessions = response.data as Session[];
+
+      for (const session of existingSessions) {
+        // Extract taskId from title if it matches our pattern "Agent Session: {taskId}-implementor"
+        const titleMatch = session.title.match(/^Agent Session: (.+)-implementor$/);
+        if (titleMatch) {
+          const taskId = titleMatch[1];
+
+          // Check if worktree directory exists
+          const workingDirectory = join(this.sessionsDir, taskId);
+          if (!existsSync(workingDirectory)) {
+            console.log(`[session-manager] Skipping session ${session.id} - worktree not found at ${workingDirectory}`);
+            continue;
+          }
+
+          // Check if we already have this session tracked
+          if (this.sessions.has(taskId)) {
+            console.log(`[session-manager] Session for task ${taskId} already tracked, skipping`);
+            continue;
+          }
+
+          const agentSession: AgentSession = {
+            sessionId: session.id,
+            taskId,
+            workingDirectory,
+            client: this.client,
+            createdAt: new Date(session.time.created * 1000),
+            status: "running",
+          };
+
+          this.sessions.set(taskId, agentSession);
+          recoveredSessions.push(agentSession);
+          console.log(`[session-manager] Recovered session ${session.id} for task ${taskId}`);
+        }
+      }
+
+      console.log(`[session-manager] Recovered ${recoveredSessions.length} existing sessions`);
+      return recoveredSessions;
+    } catch (error) {
+      console.error("[session-manager] Error recovering sessions:", error);
+      return recoveredSessions;
+    }
   }
 
   /**

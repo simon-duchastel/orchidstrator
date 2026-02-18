@@ -3,6 +3,7 @@ import { AgentOrchestrator } from "./agent-orchestrator";
 
 const mocks = vi.hoisted(() => {
   const mockListTaskStream = vi.fn();
+  const mockListTasks = vi.fn();
   const mockAssignTask = vi.fn();
   const mockUnassignTask = vi.fn();
   const mockWorktreeCreate = vi.fn();
@@ -13,9 +14,11 @@ const mocks = vi.hoisted(() => {
   const mockSessionStopAll = vi.fn();
   const mockHasSession = vi.fn();
   const mockGetSession = vi.fn();
+  const mockRecoverSessions = vi.fn();
   
   class MockTaskManager {
     listTaskStream = mockListTaskStream;
+    list = mockListTasks;
     assignTask = mockAssignTask;
     unassignTask = mockUnassignTask;
   }
@@ -26,10 +29,12 @@ const mocks = vi.hoisted(() => {
     stopAllSessions = mockSessionStopAll;
     hasSession = mockHasSession;
     getSession = mockGetSession;
+    recoverSessions = mockRecoverSessions;
   }
   
   return {
     mockListTaskStream,
+    mockListTasks,
     mockAssignTask,
     mockUnassignTask,
     mockWorktreeCreate,
@@ -40,6 +45,7 @@ const mocks = vi.hoisted(() => {
     mockSessionStopAll,
     mockHasSession,
     mockGetSession,
+    mockRecoverSessions,
     MockTaskManager,
     MockSessionManager,
   };
@@ -90,7 +96,10 @@ describe("AgentOrchestrator", () => {
       stopAllSessions: mocks.mockSessionStopAll,
       hasSession: mocks.mockHasSession,
       getSession: mocks.mockGetSession,
+      recoverSessions: mocks.mockRecoverSessions,
     };
+    mocks.mockRecoverSessions.mockResolvedValue([]);
+    mocks.mockListTasks.mockResolvedValue([]);
     orchestrator = new AgentOrchestrator({ 
       worktreeManager: mockWorktreeManager,
       sessionManager: mockSessionManager,
@@ -430,7 +439,6 @@ describe("AgentOrchestrator", () => {
       expect(mocks.mockSessionCreate).toHaveBeenCalledWith(
         "task-session",
         expect.objectContaining({
-          baseUrl: "http://localhost:4096",
           title: "Agent Session: task-session-implementor",
         })
       );

@@ -4,6 +4,7 @@ import { OpencodeSessionManager } from "./opencode-session";
 const mocks = vi.hoisted(() => {
   const mockSessionCreate = vi.fn();
   const mockSessionDelete = vi.fn();
+  const mockSessionList = vi.fn();
   const mockMkdirSync = vi.fn();
   const mockExistsSync = vi.fn();
 
@@ -11,12 +12,14 @@ const mocks = vi.hoisted(() => {
     session: {
       create: mockSessionCreate,
       delete: mockSessionDelete,
+      list: mockSessionList,
     },
   };
 
   return {
     mockSessionCreate,
     mockSessionDelete,
+    mockSessionList,
     mockMkdirSync,
     mockExistsSync,
     mockClient,
@@ -75,7 +78,6 @@ describe("OpencodeSessionManager", () => {
       mocks.mockSessionCreate.mockResolvedValue(mockResponse);
 
       const session = await sessionManager.createSession("task-1", {
-        baseUrl: "http://localhost:4096",
         title: "Test Session",
       });
 
@@ -97,7 +99,7 @@ describe("OpencodeSessionManager", () => {
       mocks.mockSessionCreate.mockResolvedValue(mockResponse);
 
       await sessionManager.createSession("task-2", {
-        baseUrl: "http://localhost:4096",
+        
       });
 
       expect(mocks.mockSessionCreate).toHaveBeenCalledWith({
@@ -114,11 +116,11 @@ describe("OpencodeSessionManager", () => {
       mocks.mockSessionCreate.mockResolvedValue(mockResponse);
 
       await sessionManager.createSession("task-3", {
-        baseUrl: "http://localhost:4096",
+        
       });
 
       await expect(
-        sessionManager.createSession("task-3", { baseUrl: "http://localhost:4096" })
+        sessionManager.createSession("task-3", {  })
       ).rejects.toThrow("Session for task task-3 already exists");
     });
 
@@ -129,7 +131,7 @@ describe("OpencodeSessionManager", () => {
       });
 
       await expect(
-        sessionManager.createSession("task-4", { baseUrl: "http://localhost:4096" })
+        sessionManager.createSession("task-4", {  })
       ).rejects.toThrow("Failed to create session");
     });
 
@@ -140,7 +142,7 @@ describe("OpencodeSessionManager", () => {
       });
 
       await expect(
-        sessionManager.createSession("task-5", { baseUrl: "http://localhost:4096" })
+        sessionManager.createSession("task-5", {  })
       ).rejects.toThrow("Failed to get session ID from create response");
     });
 
@@ -151,7 +153,7 @@ describe("OpencodeSessionManager", () => {
       });
 
       const session = await sessionManager.createSession("task-6", {
-        baseUrl: "http://localhost:4096",
+        
       });
 
       expect(session.sessionId).toBe("nested-session-123");
@@ -164,7 +166,7 @@ describe("OpencodeSessionManager", () => {
       });
 
       const session = await sessionManager.createSession("task-7", {
-        baseUrl: "http://localhost:4096",
+        
       });
 
       expect(session.sessionId).toBe("alt-session-123");
@@ -182,7 +184,7 @@ describe("OpencodeSessionManager", () => {
       });
 
       await sessionManager.createSession("task-8", {
-        baseUrl: "http://localhost:4096",
+        
       });
 
       expect(mocks.mockMkdirSync).toHaveBeenCalledWith(
@@ -200,7 +202,7 @@ describe("OpencodeSessionManager", () => {
       });
 
       await sessionManager.createSession("task-get", {
-        baseUrl: "http://localhost:4096",
+        
       });
 
       const session = sessionManager.getSession("task-get");
@@ -221,8 +223,8 @@ describe("OpencodeSessionManager", () => {
         .mockResolvedValueOnce({ data: { id: "session-1" }, error: null })
         .mockResolvedValueOnce({ data: { id: "session-2" }, error: null });
 
-      await sessionManager.createSession("task-a", { baseUrl: "http://localhost:4096" });
-      await sessionManager.createSession("task-b", { baseUrl: "http://localhost:4096" });
+      await sessionManager.createSession("task-a", {  });
+      await sessionManager.createSession("task-b", {  });
 
       const sessions = sessionManager.getAllSessions();
 
@@ -245,7 +247,7 @@ describe("OpencodeSessionManager", () => {
       });
 
       await sessionManager.createSession("task-check", {
-        baseUrl: "http://localhost:4096",
+        
       });
 
       expect(sessionManager.hasSession("task-check")).toBe(true);
@@ -265,7 +267,7 @@ describe("OpencodeSessionManager", () => {
       mocks.mockSessionDelete.mockResolvedValue({ data: {}, error: null });
 
       await sessionManager.createSession("task-remove", {
-        baseUrl: "http://localhost:4096",
+        
       });
 
       await sessionManager.removeSession("task-remove");
@@ -293,7 +295,7 @@ describe("OpencodeSessionManager", () => {
       const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       await sessionManager.createSession("task-fail", {
-        baseUrl: "http://localhost:4096",
+        
       });
 
       await sessionManager.removeSession("task-fail");
@@ -315,8 +317,8 @@ describe("OpencodeSessionManager", () => {
         .mockResolvedValueOnce({ data: { id: "session-y" }, error: null });
       mocks.mockSessionDelete.mockResolvedValue({ data: {}, error: null });
 
-      await sessionManager.createSession("task-x", { baseUrl: "http://localhost:4096" });
-      await sessionManager.createSession("task-y", { baseUrl: "http://localhost:4096" });
+      await sessionManager.createSession("task-x", {  });
+      await sessionManager.createSession("task-y", {  });
 
       expect(sessionManager.getSessionCount()).toBe(2);
 
@@ -332,7 +334,7 @@ describe("OpencodeSessionManager", () => {
       });
       mocks.mockSessionDelete.mockRejectedValue(new Error("Delete error"));
 
-      await sessionManager.createSession("task-z", { baseUrl: "http://localhost:4096" });
+      await sessionManager.createSession("task-z", {  });
 
       // Should not throw
       await expect(sessionManager.stopAllSessions()).resolves.toBeUndefined();
@@ -350,7 +352,7 @@ describe("OpencodeSessionManager", () => {
       });
 
       await sessionManager.createSession("task-count", {
-        baseUrl: "http://localhost:4096",
+        
       });
 
       expect(sessionManager.getSessionCount()).toBe(1);
