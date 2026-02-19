@@ -26,6 +26,12 @@ vi.mock('child_process', () => ({
   execSync: vi.fn(),
 }));
 
+// Mock dyson-swarm
+vi.mock('dyson-swarm', () => ({
+  isInitialized: vi.fn().mockResolvedValue(false),
+  initialize: vi.fn().mockResolvedValue(undefined),
+}));
+
 // Import mocked functions
 import { existsSync, readFileSync, mkdirSync, rmSync, writeFileSync, unlinkSync } from 'node:fs';
 import { execSync } from 'child_process';
@@ -252,6 +258,50 @@ describe('init.ts - Orchid Initialization', () => {
       
       // Verify cleanup would be attempted (mkdirSync should have been called for structure creation)
       expect(vi.mocked(mkdirSync)).toHaveBeenCalled();
+    });
+  });
+
+  describe('dyson-swarm integration', () => {
+    it('should initialize dyson-swarm if not already initialized', async () => {
+      const { isInitialized, initialize } = await import('dyson-swarm');
+      
+      // Mock that dyson-swarm is not initialized
+      vi.mocked(isInitialized).mockResolvedValue(false);
+      
+      // Mock that orchid is not initialized initially
+      vi.mocked(existsSync).mockImplementation((path) => {
+        const pathStr = String(path);
+        if (pathStr.includes('main')) return false;
+        return false;
+      });
+      
+      const mockGitOps = new MockGitOperations();
+      const result = await initializeOrchid('https://github.com/user/repo.git', mockGitOps);
+      
+      expect(result.success).toBe(true);
+      expect(vi.mocked(isInitialized)).toHaveBeenCalled();
+      expect(vi.mocked(initialize)).toHaveBeenCalled();
+    });
+
+    it('should skip dyson-swarm initialization if already initialized', async () => {
+      const { isInitialized, initialize } = await import('dyson-swarm');
+      
+      // Mock that dyson-swarm is already initialized
+      vi.mocked(isInitialized).mockResolvedValue(true);
+      
+      // Mock that orchid is not initialized initially
+      vi.mocked(existsSync).mockImplementation((path) => {
+        const pathStr = String(path);
+        if (pathStr.includes('main')) return false;
+        return false;
+      });
+      
+      const mockGitOps = new MockGitOperations();
+      const result = await initializeOrchid('https://github.com/user/repo.git', mockGitOps);
+      
+      expect(result.success).toBe(true);
+      expect(vi.mocked(isInitialized)).toHaveBeenCalled();
+      expect(vi.mocked(initialize)).not.toHaveBeenCalled();
     });
   });
 });
