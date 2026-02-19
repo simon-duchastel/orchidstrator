@@ -9,6 +9,7 @@ import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { getPidFile, getDirectoryPort, getOrchidDir, getMainRepoDir } from "./paths.js";
 import { createOpencodeServer, type OpencodeServerInstance } from "./opencode-server.js";
 import { AgentOrchestrator } from "./agent-orchestrator.js";
+import { log } from "./utils/logger.js";
 
 let serverInstance: OpencodeServerInstance | null = null;
 let orchestrator: AgentOrchestrator | null = null;
@@ -26,7 +27,7 @@ async function main() {
   // Write our PID so the CLI can find and stop us
   writeFileSync(pidFile, process.pid.toString());
 
-  console.log(`[orchid] Starting daemon (PID: ${process.pid})`);
+  log.log(`[orchid] Starting daemon (PID: ${process.pid})`);
 
   try {
     // Create the OpenCode server with dynamic port allocation and auth
@@ -35,8 +36,8 @@ async function main() {
       startPort: startPort,
     });
 
-    console.log(`[orchid] OpenCode server running at ${serverInstance.info.url}`);
-    console.log(`[orchid] Server secured with authentication (credentials in memory only)`);
+    log.log(`[orchid] OpenCode server running at ${serverInstance.info.url}`);
+    log.log(`[orchid] Server secured with authentication (credentials in memory only)`);
 
     const mainRepoDir = getMainRepoDir();
     orchestrator = new AgentOrchestrator({
@@ -45,24 +46,24 @@ async function main() {
     });
 
     orchestrator.start().catch((err) => {
-      console.error("[orchid] Orchestrator error:", err);
+      log.error("[orchid] Orchestrator error:", err);
     });
-    console.log("[orchid] Agent orchestrator started");
+    log.log("[orchid] Agent orchestrator started");
 
     // Handle shutdown signals gracefully
     const shutdown = async (signal: string) => {
-      console.log(`[orchid] Received ${signal}, shutting down...`);
+      log.log(`[orchid] Received ${signal}, shutting down...`);
       try {
         if (orchestrator) {
           await orchestrator.stop();
-          console.log("[orchid] Orchestrator stopped");
+          log.log("[orchid] Orchestrator stopped");
         }
         if (serverInstance) {
           await serverInstance.stop();
-          console.log("[orchid] OpenCode server closed");
+          log.log("[orchid] OpenCode server closed");
         }
       } catch (err) {
-        console.error("[orchid] Error closing server:", err);
+        log.error("[orchid] Error closing server:", err);
       }
       process.exit(0);
     };
@@ -70,9 +71,9 @@ async function main() {
     process.on("SIGTERM", () => shutdown("SIGTERM"));
     process.on("SIGINT", () => shutdown("SIGINT"));
 
-    console.log("[orchid] Daemon ready");
+    log.log("[orchid] Daemon ready");
   } catch (err) {
-    console.error("[orchid] Failed to start daemon:", err);
+    log.error("[orchid] Failed to start daemon:", err);
     process.exit(1);
   }
 }

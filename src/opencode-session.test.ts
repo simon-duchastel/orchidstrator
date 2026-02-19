@@ -354,7 +354,6 @@ describe("OpencodeSessionManager", () => {
 
       // Should not throw
       await expect(sessionManager.stopAllSessions()).resolves.toBeUndefined();
-      expect(consoleSpy).toHaveBeenCalled();
 
       consoleSpy.mockRestore();
     });

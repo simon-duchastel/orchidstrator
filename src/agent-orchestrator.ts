@@ -16,6 +16,7 @@ import {
   type AgentSession,
 } from "./opencode-session.js";
 import { fillAgentPromptTemplate } from "./templates.js";
+import { log } from "./utils/logger.js";
 
 export interface AgentInfo {
   taskId: string;
@@ -56,12 +57,12 @@ export class AgentOrchestrator {
 
   async start(): Promise<void> {
     if (this.abortController) {
-      console.log("[orchestrator] Already running");
+      log.log("[orchestrator] Already running");
       return;
     }
 
     this.abortController = new AbortController();
-    console.log("[orchestrator] Starting task monitor...");
+    log.log("[orchestrator] Starting task monitor...");
 
     try {
       const stream = this.taskManager.listTaskStream({ status: "open" });
@@ -74,9 +75,9 @@ export class AgentOrchestrator {
       }
     } catch (error) {
       if ((error as Error).name === "AbortError") {
-        console.log("[orchestrator] Task monitor aborted");
+        log.log("[orchestrator] Task monitor aborted");
       } else {
-        console.error("[orchestrator] Error in task monitor:", error);
+        log.error("[orchestrator] Error in task monitor:", error);
       }
     }
   }
@@ -86,11 +87,11 @@ export class AgentOrchestrator {
       return;
     }
 
-    console.log("[orchestrator] Stopping task monitor...");
+    log.log("[orchestrator] Stopping task monitor...");
     this.abortController.abort();
     this.abortController = null;
 
-    console.log("[orchestrator] Stopping all running agents...");
+    log.log("[orchestrator] Stopping all running agents...");
     for (const [taskId, agent] of this.runningAgents) {
       await this.stopAgent(taskId);
     }
@@ -100,12 +101,12 @@ export class AgentOrchestrator {
     // Stop all remaining sessions (in case any weren't cleaned up)
     try {
       await this.sessionManager.stopAllSessions();
-      console.log("[orchestrator] All OpenCode sessions stopped");
+      log.log("[orchestrator] All OpenCode sessions stopped");
     } catch (error) {
-      console.error("[orchestrator] Error stopping sessions:", error);
+      log.error("[orchestrator] Error stopping sessions:", error);
     }
     
-    console.log("[orchestrator] Stopped");
+    log.log("[orchestrator] Stopped");
   }
 
   private async syncAgents(openTasks: Task[]): Promise<void> {
@@ -119,7 +120,7 @@ export class AgentOrchestrator {
 
     for (const [taskId, agent] of this.runningAgents) {
       if (!openTaskIds.has(taskId)) {
-        console.log(
+        log.log(
           `[orchestrator] Task ${taskId} no longer open, stopping agent`
         );
         await this.stopAgent(taskId);
@@ -130,7 +131,7 @@ export class AgentOrchestrator {
 
   private async startAgent(taskId: string): Promise<void> {
     const agentId = `${taskId}-implementor`;
-    console.log(`[orchestrator] Starting implementor agent for task ${taskId}`);
+    log.log(`[orchestrator] Starting implementor agent for task ${taskId}`);
 
     // Get task details
     const tasks = await this.taskManager.listTasks({ status: "open" });
@@ -144,9 +145,9 @@ export class AgentOrchestrator {
 
     try {
       await this.worktreeManager.create(worktreePath, "HEAD", { detach: true });
-      console.log(`[orchestrator] Created worktree at ${worktreePath} for task ${taskId}`);
+      log.log(`[orchestrator] Created worktree at ${worktreePath} for task ${taskId}`);
     } catch (error) {
-      console.error(`[orchestrator] Failed to create worktree for task ${taskId}:`, error);
+      log.error(`[orchestrator] Failed to create worktree for task ${taskId}:`, error);
       throw error;
     }
 
@@ -154,14 +155,14 @@ export class AgentOrchestrator {
     let session: AgentSession;
     try {
       session = await this.sessionManager.createSession(taskId);
-      console.log(`[orchestrator] Created OpenCode session ${session.sessionId} for task ${taskId}`);
+      log.log(`[orchestrator] Created OpenCode session ${session.sessionId} for task ${taskId}`);
     } catch (error) {
-      console.error(`[orchestrator] Failed to create OpenCode session for task ${taskId}:`, error);
+      log.error(`[orchestrator] Failed to create OpenCode session for task ${taskId}:`, error);
       // Clean up the worktree since session creation failed
       try {
         await this.worktreeManager.remove(worktreePath, { force: true });
       } catch (cleanupError) {
-        console.error(`[orchestrator] Failed to clean up worktree after session creation failed:`, cleanupError);
+        log.error(`[orchestrator] Failed to clean up worktree after session creation failed:`, cleanupError);
       }
       throw error;
     }
@@ -179,19 +180,19 @@ export class AgentOrchestrator {
         promptMessage,
         worktreePath
       );
-      console.log(`[orchestrator] Sent initial message to session ${session.sessionId} for task ${taskId}`);
+      log.log(`[orchestrator] Sent initial message to session ${session.sessionId} for task ${taskId}`);
     } catch (error) {
-      console.error(`[orchestrator] Failed to send initial message for task ${taskId}:`, error);
+      log.error(`[orchestrator] Failed to send initial message for task ${taskId}:`, error);
       // Clean up session and worktree since message sending failed
       try {
         await this.sessionManager.removeSession(taskId);
       } catch (cleanupError) {
-        console.error(`[orchestrator] Failed to clean up session after message sending failed:`, cleanupError);
+        log.error(`[orchestrator] Failed to clean up session after message sending failed:`, cleanupError);
       }
       try {
         await this.worktreeManager.remove(worktreePath, { force: true });
       } catch (cleanupError) {
-        console.error(`[orchestrator] Failed to clean up worktree after message sending failed:`, cleanupError);
+        log.error(`[orchestrator] Failed to clean up worktree after message sending failed:`, cleanupError);
       }
       throw error;
     }
@@ -207,7 +208,7 @@ export class AgentOrchestrator {
       session,
     });
 
-    console.log(`[orchestrator] Agent ${agentId} started for task ${taskId}`);
+    log.log(`[orchestrator] Agent ${agentId} started for task ${taskId}`);
   }
 
   private async stopAgent(taskId: string): Promise<void> {
@@ -217,27 +218,27 @@ export class AgentOrchestrator {
     }
 
     agent.status = "stopping";
-    console.log(`[orchestrator] Stopping agent ${agent.agentId} for task ${taskId}`);
+    log.log(`[orchestrator] Stopping agent ${agent.agentId} for task ${taskId}`);
 
     // Remove the OpenCode session if it exists
     if (agent.session) {
       try {
         await this.sessionManager.removeSession(taskId);
-        console.log(`[orchestrator] Removed OpenCode session ${agent.session.sessionId} for task ${taskId}`);
+        log.log(`[orchestrator] Removed OpenCode session ${agent.session.sessionId} for task ${taskId}`);
       } catch (error) {
-        console.error(`[orchestrator] Failed to remove OpenCode session for task ${taskId}:`, error);
+        log.error(`[orchestrator] Failed to remove OpenCode session for task ${taskId}:`, error);
       }
     }
 
-    console.log(`[orchestrator] Agent ${agent.agentId} stopped for task ${taskId}`);
+    log.log(`[orchestrator] Agent ${agent.agentId} stopped for task ${taskId}`);
 
     await this.taskManager.unassignTask(taskId);
 
     try {
       await this.worktreeManager.remove(agent.worktreePath, { force: true });
-      console.log(`[orchestrator] Removed worktree at ${agent.worktreePath} for task ${taskId}`);
+      log.log(`[orchestrator] Removed worktree at ${agent.worktreePath} for task ${taskId}`);
     } catch (error) {
-      console.error(`[orchestrator] Failed to remove worktree for task ${taskId}:`, error);
+      log.error(`[orchestrator] Failed to remove worktree for task ${taskId}:`, error);
     }
 
     agent.status = "stopped";

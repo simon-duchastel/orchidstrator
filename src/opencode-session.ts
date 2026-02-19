@@ -8,6 +8,7 @@
 import { createOpencodeClient, type OpencodeClient, type Session } from "@opencode-ai/sdk";
 import { join } from "node:path";
 import { mkdirSync, existsSync } from "node:fs";
+import { log } from "./utils/logger.js";
 
 export interface AgentSession {
   /** Unique session identifier (from OpenCode) */
@@ -174,7 +175,7 @@ export class OpencodeSessionManager {
         status: "running",
       };
     } catch (error) {
-      console.error(`[session-manager] Error getting session for task ${taskId}:`, error);
+      log.error(`[session-manager] Error getting session for task ${taskId}:`, error);
       return undefined;
     }
   }
@@ -204,7 +205,7 @@ export class OpencodeSessionManager {
         status: "running",
       }));
     } catch (error) {
-      console.error("[session-manager] Error getting all sessions:", error);
+      log.error("[session-manager] Error getting all sessions:", error);
       return [];
     }
   }
@@ -259,7 +260,7 @@ export class OpencodeSessionManager {
     await Promise.all(
       sessions.map((session) =>
         this.removeSession(session.taskId).catch((error) => {
-          console.error(`[session-manager] Error stopping session ${session.sessionId}:`, error);
+          log.error(`[session-manager] Error stopping session ${session.sessionId}:`, error);
         })
       )
     );
