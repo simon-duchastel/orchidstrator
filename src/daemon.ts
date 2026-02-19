@@ -39,7 +39,10 @@ async function main() {
     console.log(`[orchid] Server secured with authentication (credentials in memory only)`);
 
     const mainRepoDir = getMainRepoDir();
-    orchestrator = new AgentOrchestrator({ cwdProvider: () => mainRepoDir });
+    orchestrator = new AgentOrchestrator({
+      cwdProvider: () => mainRepoDir,
+      opencodeBaseUrl: serverInstance.info.url,
+    });
 
     orchestrator.start().catch((err) => {
       console.error("[orchid] Orchestrator error:", err);
