@@ -22,7 +22,6 @@ export interface AgentInfo {
   startedAt: Date;
   status: "running" | "stopping" | "stopped";
   worktreePath: string;
-  /** OpenCode session information for this agent */
   session?: AgentSession;
 }
 
