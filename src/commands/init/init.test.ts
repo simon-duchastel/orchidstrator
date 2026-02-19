@@ -374,6 +374,7 @@ describe('init.ts - Orchid Initialization', () => {
         if (pathStr.includes('main')) return false;
         return false;
       });
+      
       vi.mocked(readdirSync).mockReturnValue([] as any);
       
       const mockGitOps = new MockGitOperations();
@@ -396,6 +397,7 @@ describe('init.ts - Orchid Initialization', () => {
         if (pathStr.includes('main')) return false;
         return false;
       });
+      
       vi.mocked(readdirSync).mockReturnValue([] as any);
       
       const mockGitOps = new MockGitOperations();
