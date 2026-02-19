@@ -42,6 +42,9 @@ import { validateOrchidStructure } from '../src/commands';
 
 describe('process-manager.ts - Updated Logic', () => {
   beforeEach(() => {
+    // Enable fake timers to speed up tests with setTimeout
+    vi.useFakeTimers();
+    
     // Clear all mocks
     vi.clearAllMocks();
     
@@ -49,6 +52,11 @@ describe('process-manager.ts - Updated Logic', () => {
     vi.mocked(rmSync).mockImplementation(() => {});
     vi.mocked(openSync).mockReturnValue(1);
     vi.mocked(closeSync).mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    // Restore real timers after each test
+    vi.useRealTimers();
   });
 
   describe('startDaemon with orchid validation', () => {
@@ -178,7 +186,13 @@ it('should validate orchid structure when initialized', async () => {
 
       vi.mocked(readFileSync).mockReturnValue('');
 
-      const result = await startDaemon();
+      // Start the daemon operation
+      const startPromise = startDaemon();
+      
+      // Advance timers to skip the 1500ms delay in startDaemon
+      await vi.advanceTimersByTimeAsync(1500);
+      
+      const result = await startPromise;
 
       expect(mockValidate).toHaveBeenCalled();
       // Result will be false due to mocked spawn, but validation should have passed
