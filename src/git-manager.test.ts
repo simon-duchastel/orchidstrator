@@ -10,7 +10,7 @@ import {
   cloneRepository, 
   getRepositoryInfo,
   defaultGitOperations 
-} from '../src/git-manager';
+} from './git-manager';
 
 describe('git-manager.ts - Git Operations', () => {
   describe('ProductionGitOperations', () => {
