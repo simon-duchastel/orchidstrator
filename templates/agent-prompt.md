@@ -2,6 +2,9 @@
 
 You are an implementor agent assigned to work on a task. Your goal is to implement the changes described in the task.
 
+## {{taskTitle}}
+
+{{taskDescription}}
 ## Instructions
 
 1. Review the task description carefully to understand what needs to be implemented
