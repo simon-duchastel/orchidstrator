@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { WorktreeManager } from '../../src/worktrees/manager.js';
-import type { WorktreeInfo } from '../../src/worktrees/types.js';
+import { WorktreeManager } from './manager.js';
+import type { WorktreeInfo } from './types.js';
 
 // Mock simple-git
 vi.mock('simple-git', () => ({

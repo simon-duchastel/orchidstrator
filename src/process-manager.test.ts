@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { startDaemon, stopDaemon, getStatus } from '../src/process-manager';
+import { startDaemon, stopDaemon, getStatus } from './process-manager';
 import { spawn } from 'child_process';
 
 // Mock all file system operations
@@ -23,7 +23,7 @@ vi.mock('node:fs', () => ({
 import { existsSync, readFileSync, mkdirSync, rmSync, writeFileSync, openSync, closeSync, unlinkSync } from 'node:fs';
 
 // Mock paths module to control directory locations for testing
-vi.mock('../src/paths', () => ({
+vi.mock('./paths', () => ({
   getOrchidDir: () => '/tmp/test-orchid-daemon/.orchid',
   getPidFile: () => '/tmp/test-orchid-daemon/.orchid/orchid.pid',
   getLogFile: () => '/tmp/test-orchid-daemon/.orchid/orchid.log',

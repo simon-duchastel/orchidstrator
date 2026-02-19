@@ -14,7 +14,7 @@ import {
   getErrorLogFile,
   getMainRepoDir,
   getWorktreesDir,
-} from '../src/paths';
+} from './paths';
 
 describe('paths.ts - Pure Functions', () => {
   describe('generatePortHash', () => {
