@@ -6,15 +6,20 @@ import { upCommand } from "./cli/commands/up";
 import { downCommand } from "./cli/commands/down";
 import { statusCommand } from "./cli/commands/status";
 import { dashboardCommand } from "./cli/commands/dashboard";
+import { setVerboseLogging } from "./utils/logger.js";
 
 await new Command()
   .help(flatHelp())
   .name("orchid")
-  .action(function () {
-    this.showHelp();
-  })
   .description("Orchestrate complex background AI tasks")
   .version("1.0.0")
+  .globalOption("--verbose", "Enable verbose logging")
+  .action(function (options) {
+    if (options.verbose) {
+      setVerboseLogging(true);
+    }
+    this.showHelp();
+  })
   .command("init", initCommand)
   .command("up", upCommand)
   .command("down", downCommand)
