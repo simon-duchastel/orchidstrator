@@ -370,29 +370,4 @@ describe("OpencodeSessionManager", () => {
       expect(mocks.mockSessionDelete).not.toHaveBeenCalled();
     });
   });
-
-  describe("getSessionCount", () => {
-    it("should return correct count from server", async () => {
-      mocks.mockSessionList.mockResolvedValue({
-        data: [
-          { id: "session-1", title: "task-a", time: { created: 1704067200 } },
-          { id: "session-2", title: "task-b", time: { created: 1704153600 } },
-        ],
-        error: null,
-      });
-
-      const count = await sessionManager.getSessionCount();
-      expect(count).toBe(2);
-    });
-
-    it("should return 0 when no sessions exist", async () => {
-      mocks.mockSessionList.mockResolvedValue({
-        data: [],
-        error: null,
-      });
-
-      const count = await sessionManager.getSessionCount();
-      expect(count).toBe(0);
-    });
-  });
 });

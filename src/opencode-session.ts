@@ -272,12 +272,4 @@ export class OpencodeSessionManager {
     );
   }
 
-  /**
-   * Get the number of active sessions.
-   * Queries the OpenCode server for the count.
-   */
-  async getSessionCount(): Promise<number> {
-    const sessions = await this.getAllSessions();
-    return sessions.length;
-  }
 }
