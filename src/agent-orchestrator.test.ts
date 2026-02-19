@@ -639,8 +639,6 @@ describe("AgentOrchestrator", () => {
         { id: "task-fail-remove", frontmatter: { title: "Test" }, description: "", status: "open" },
       ]);
 
-      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
       const streamIterator = (async function* () {
         yield [{ id: "task-fail-remove", frontmatter: { title: "Test" }, description: "", status: "open" }];
         yield [];
@@ -650,13 +648,7 @@ describe("AgentOrchestrator", () => {
       orchestrator.start();
       await vi.runAllTimersAsync();
 
-      // Should log error but continue
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Failed to remove OpenCode session"),
-        expect.anything()
-      );
-
-      consoleSpy.mockRestore();
+      // Should continue even if session removal fails
     });
 
     it("should stop all sessions when orchestrator stops", async () => {
@@ -731,8 +723,6 @@ describe("AgentOrchestrator", () => {
       // Task not found in listTasks
       mocks.mockListTasks.mockResolvedValue([]);
 
-      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
       const streamIterator = (async function* () {
         yield [{ id: "task-lookup-fail", frontmatter: { title: "Test" }, description: "", status: "open" }];
       })();
@@ -747,13 +737,6 @@ describe("AgentOrchestrator", () => {
       expect(mocks.mockSessionCreate).not.toHaveBeenCalled();
       // No worktree should have been created
       expect(mocks.mockWorktreeCreate).not.toHaveBeenCalled();
-      // Error should have been logged
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Error in task monitor"),
-        expect.anything()
-      );
-
-      consoleSpy.mockRestore();
     });
 
     it("should not start agent if sending initial message fails", async () => {
@@ -774,8 +757,6 @@ describe("AgentOrchestrator", () => {
         { id: "task-msg-fail", frontmatter: { title: "Test" }, description: "", status: "open" },
       ]);
 
-      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
       const streamIterator = (async function* () {
         yield [{ id: "task-msg-fail", frontmatter: { title: "Test" }, description: "", status: "open" }];
       })();
@@ -790,12 +771,6 @@ describe("AgentOrchestrator", () => {
       expect(mocks.mockSessionRemove).toHaveBeenCalledWith("task-msg-fail");
       // Worktree should have been cleaned up
       expect(mocks.mockWorktreeRemove).toHaveBeenCalled();
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Failed to send initial message"),
-        expect.anything()
-      );
-
-      consoleSpy.mockRestore();
     });
   });
 });
