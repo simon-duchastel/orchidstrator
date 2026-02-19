@@ -174,7 +174,6 @@ export class AgentOrchestrator {
     // Send initial message to the session
     try {
       const promptMessage = AGENT_PROMPT_TEMPLATE
-        .replace(/\{\{taskId\}\}/g, taskId)
         .replace(/\{\{taskTitle\}\}/g, task.frontmatter.title || "")
         .replace(/\{\{taskDescription\}\}/g, task.description || "")
         .replace(/\{\{worktreePath\}\}/g, worktreePath);
