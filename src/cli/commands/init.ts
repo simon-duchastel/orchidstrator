@@ -34,5 +34,5 @@ export async function initAction(repository: string, options: InitOptions) {
 export const initCommand: any = new Command()
   .description("Initialize orchid workspace with a git repository")
   .argument("<repository-url>", "Url of the git repository to clone, ex. git@github.com:simon-duchastel/orchid.git")
-  .option("--dangerously-init-in-non-empty-dir", "Allow initialization in a non-empty directory without prompting")
+  .option("--dangerously-init-in-non-empty-dir", "Allow initialization in a non-empty directory (might overwrite files)")
   .action(initAction);
