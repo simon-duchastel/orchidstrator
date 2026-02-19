@@ -94,7 +94,7 @@ describe('init command', () => {
 
     await initAction({ dangerouslyInitInNonEmptyDir: true }, 'https://github.com/user/repo.git');
 
-    expect(mockIsDirectoryEmpty).toHaveBeenCalled();
+    expect(mockIsDirectoryEmpty).not.toHaveBeenCalled();
     expect(mockConfirmPrompt).not.toHaveBeenCalled();
     expect(mockInitializeOrchid).toHaveBeenCalledWith(
       'https://github.com/user/repo.git',
@@ -124,7 +124,7 @@ describe('init command', () => {
 
     await initAction({ dangerouslyInitInNonEmptyDir: true }, 'https://github.com/user/repo.git');
 
-    expect(mockIsDirectoryEmpty).toHaveBeenCalled();
+    expect(mockIsDirectoryEmpty).not.toHaveBeenCalled();
     expect(mockConfirmPrompt).not.toHaveBeenCalled();
     expect(mockInitializeOrchid).toHaveBeenCalledWith(
       'https://github.com/user/repo.git',
