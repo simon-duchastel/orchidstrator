@@ -3,11 +3,7 @@ import { Confirm } from "@cliffy/prompt/confirm";
 import { initializeOrchid, isDirectoryEmpty } from "../../commands/init/init";
 import { cwd } from "node:process";
 
-interface InitOptions {
-  dangerouslyInitInNonEmptyDir?: boolean;
-}
-
-export async function initAction(repository: string, options: InitOptions) {
+export async function initAction(options: { dangerouslyInitInNonEmptyDir?: true }, repository: string) {
   const currentDir = cwd();
   const allowNonEmptyDir = options.dangerouslyInitInNonEmptyDir ?? false;
 

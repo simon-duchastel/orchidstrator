@@ -39,7 +39,7 @@ describe('init command', () => {
       message: 'Successfully initialized orchid',
     });
 
-    await initAction('https://github.com/user/repo.git', {});
+    await initAction({}, 'https://github.com/user/repo.git');
 
     expect(mockIsDirectoryEmpty).toHaveBeenCalled();
     expect(mockConfirmPrompt).not.toHaveBeenCalled();
@@ -58,7 +58,7 @@ describe('init command', () => {
       message: 'Successfully initialized orchid',
     });
 
-    await initAction('https://github.com/user/repo.git', {});
+    await initAction({}, 'https://github.com/user/repo.git');
 
     expect(mockIsDirectoryEmpty).toHaveBeenCalled();
     expect(mockConfirmPrompt).toHaveBeenCalledWith({
@@ -76,7 +76,7 @@ describe('init command', () => {
     mockIsDirectoryEmpty.mockReturnValue(false);
     mockConfirmPrompt.mockResolvedValue(false);
 
-    await expect(initAction('https://github.com/user/repo.git', {}))
+    await expect(initAction({}, 'https://github.com/user/repo.git'))
       .rejects.toThrow('process.exit called with code 0');
 
     expect(mockIsDirectoryEmpty).toHaveBeenCalled();
@@ -92,7 +92,7 @@ describe('init command', () => {
       message: 'Successfully initialized orchid',
     });
 
-    await initAction('https://github.com/user/repo.git', { dangerouslyInitInNonEmptyDir: true });
+    await initAction({ dangerouslyInitInNonEmptyDir: true }, 'https://github.com/user/repo.git');
 
     expect(mockIsDirectoryEmpty).toHaveBeenCalled();
     expect(mockConfirmPrompt).not.toHaveBeenCalled();
@@ -109,7 +109,7 @@ describe('init command', () => {
       message: 'Initialization failed',
     });
 
-    await expect(initAction('https://github.com/user/repo.git', {}))
+    await expect(initAction({}, 'https://github.com/user/repo.git'))
       .rejects.toThrow('process.exit called with code 1');
 
     expect(mockConsoleLog).toHaveBeenCalledWith('Initialization failed');
@@ -122,7 +122,7 @@ describe('init command', () => {
       message: 'Successfully initialized orchid',
     });
 
-    await initAction('https://github.com/user/repo.git', { dangerouslyInitInNonEmptyDir: true });
+    await initAction({ dangerouslyInitInNonEmptyDir: true }, 'https://github.com/user/repo.git');
 
     expect(mockIsDirectoryEmpty).toHaveBeenCalled();
     expect(mockConfirmPrompt).not.toHaveBeenCalled();
