@@ -5,8 +5,9 @@
  * Creates workspace structure and clones repository.
  */
 
-import { existsSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync, rmSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { cwd } from "node:process";
 import { cloneRepository, GitOperations, defaultGitOperations } from "../../git-manager";
 import {
   getOrchidDir,
@@ -15,6 +16,25 @@ import {
   getWorktreesDir,
 } from "../../paths";
 import { isInitialized as isDysonSwarmInitialized, initialize as initializeDysonSwarm } from "dyson-swarm";
+
+/**
+ * Check if a directory is empty
+ *
+ * @param dirPath - The path to the directory to check
+ * @returns true if the directory is empty or doesn't exist, false otherwise
+ */
+export function isDirectoryEmpty(dirPath: string): boolean {
+  if (!existsSync(dirPath)) {
+    return true;
+  }
+
+  try {
+    const files = readdirSync(dirPath);
+    return files.length === 0;
+  } catch {
+    return true;
+  }
+}
 
 /**
  * Result of orchid initialization
@@ -134,18 +154,33 @@ export function createOrchidStructure(): { success: boolean; message: string; cl
   }
 }
 
+export interface InitializeOrchidOptions {
+  allowNonEmptyDir?: boolean;
+}
+
 /**
  * Initialize orchid workspace
  */
 export async function initializeOrchid(
   repoUrl: string,
+  options: InitializeOrchidOptions = {},
   gitOps: GitOperations = defaultGitOperations
 ): Promise<InitResult> {
+  const { allowNonEmptyDir = false } = options;
+
   // Check if already initialized
   if (isOrchidInitialized()) {
     return {
       success: false,
       message: "Orchid is already initialized in this directory. Use 'orchid status' to check the current state.",
+    };
+  }
+
+  // Check if directory is empty (unless explicitly allowed)
+  if (!allowNonEmptyDir && !isDirectoryEmpty(cwd())) {
+    return {
+      success: false,
+      message: "Directory is not empty. Use --dangerously-init-in-non-empty-dir to proceed anyway.",
     };
   }
 

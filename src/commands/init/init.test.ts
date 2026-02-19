@@ -8,7 +8,8 @@ import {
   isOrchidInitialized, 
   validateOrchidStructure, 
   createOrchidStructure, 
-  initializeOrchid 
+  initializeOrchid,
+  isDirectoryEmpty
 } from './init';
 import { MockGitOperations } from '../../git-manager';
 
@@ -20,6 +21,7 @@ vi.mock('node:fs', () => ({
   rmSync: vi.fn(),
   writeFileSync: vi.fn(),
   unlinkSync: vi.fn(),
+  readdirSync: vi.fn(),
 }));
 
 vi.mock('child_process', () => ({
@@ -33,7 +35,7 @@ vi.mock('dyson-swarm', () => ({
 }));
 
 // Import mocked functions
-import { existsSync, readFileSync, mkdirSync, rmSync, writeFileSync, unlinkSync } from 'node:fs';
+import { existsSync, readFileSync, mkdirSync, rmSync, writeFileSync, unlinkSync, readdirSync } from 'node:fs';
 import { execSync } from 'child_process';
 
 // Mock: paths module to control directory locations for testing
@@ -182,27 +184,124 @@ describe('init.ts - Orchid Initialization', () => {
     });
   });
 
+  describe('isDirectoryEmpty', () => {
+    it('should return true when directory does not exist', () => {
+      vi.mocked(existsSync).mockReturnValue(false);
+
+      const result = isDirectoryEmpty('/nonexistent/path');
+
+      expect(result).toBe(true);
+      expect(existsSync).toHaveBeenCalledWith('/nonexistent/path');
+    });
+
+    it('should return true when directory is empty', () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockReturnValue([] as any);
+
+      const result = isDirectoryEmpty('/empty/path');
+
+      expect(result).toBe(true);
+      expect(readdirSync).toHaveBeenCalledWith('/empty/path');
+    });
+
+    it('should return false when directory has files', () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockReturnValue(['file1.txt', 'file2.txt'] as any);
+
+      const result = isDirectoryEmpty('/nonempty/path');
+
+      expect(result).toBe(false);
+    });
+
+    it('should return true when readdir throws an error', () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockImplementation(() => {
+        throw new Error('Permission denied');
+      });
+
+      const result = isDirectoryEmpty('/inaccessible/path');
+
+      expect(result).toBe(true);
+    });
+  });
+
   describe('initializeOrchid', () => {
     it('should reject when already initialized', async () => {
       // Mock that orchid is already initialized
       vi.mocked(existsSync).mockReturnValue(true);
       
       const mockGitOps = new MockGitOperations();
-      const result = await initializeOrchid('https://github.com/user/repo.git', mockGitOps);
+      const result = await initializeOrchid('https://github.com/user/repo.git', {}, mockGitOps);
       
       expect(result.success).toBe(false);
       expect(result.message).toContain('already initialized');
     });
 
+    it('should reject when directory is not empty and allowNonEmptyDir is false', async () => {
+      // Mock that orchid is not initialized, but directory is not empty
+      vi.mocked(existsSync).mockImplementation((path) => {
+        const pathStr = String(path);
+        // Return false for orchid dirs, true for cwd (has files)
+        if (pathStr.includes('.orchid') || pathStr.includes('main')) return false;
+        return true;
+      });
+      vi.mocked(readdirSync).mockReturnValue(['existing-file.txt'] as any);
+      
+      const mockGitOps = new MockGitOperations();
+      const result = await initializeOrchid('https://github.com/user/repo.git', { allowNonEmptyDir: false }, mockGitOps);
+      
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Directory is not empty');
+      expect(result.message).toContain('--dangerously-init-in-non-empty-dir');
+    });
+
+    it('should allow initialization in non-empty directory when allowNonEmptyDir is true', async () => {
+      let createdPaths: string[] = [];
+      
+      // Mock that orchid is not initialized, directory has files, but allowNonEmptyDir is true
+      vi.mocked(existsSync).mockImplementation((path) => {
+        const pathStr = String(path);
+        // Return false for orchid dirs and main, true for cwd (has files)
+        if (pathStr.includes('.orchid') || pathStr.includes('main')) return false;
+        return true;
+      });
+      vi.mocked(readdirSync).mockReturnValue(['existing-file.txt'] as any);
+      
+      // Track mkdirSync calls
+      vi.mocked(mkdirSync).mockImplementation((path) => {
+        createdPaths.push(String(path));
+        return '';
+      });
+      
+      const mockGitOps = new MockGitOperations();
+      const result = await initializeOrchid('https://github.com/user/repo.git', { allowNonEmptyDir: true }, mockGitOps);
+      
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('Successfully initialized');
+    });
+
+    it('should succeed with empty directory (default behavior)', async () => {
+      // Mock that orchid is not initialized and directory is empty
+      vi.mocked(existsSync).mockReturnValue(false);
+      vi.mocked(readdirSync).mockReturnValue([] as any);
+      
+      const mockGitOps = new MockGitOperations();
+      const result = await initializeOrchid('https://github.com/user/repo.git', {}, mockGitOps);
+      
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('Successfully initialized');
+    });
+
     it('should fail when git clone fails and clean up', async () => {
       let createdPaths: string[] = [];
       
-      // Mock that orchid is not initialized initially, but track created paths
+      // Mock that orchid is not initialized initially, directory is empty
       vi.mocked(existsSync).mockImplementation((path) => {
         const pathStr = String(path);
         if (pathStr.includes('main')) return false;
         return false;
       });
+      vi.mocked(readdirSync).mockReturnValue([] as any);
       
       // Track mkdirSync calls to know which paths were "created"
       vi.mocked(mkdirSync).mockImplementation((path) => {
@@ -216,7 +315,7 @@ describe('init.ts - Orchid Initialization', () => {
       });
       
       const mockGitOps = new MockGitOperations(true); // Configure to fail
-      const result = await initializeOrchid('https://github.com/user/repo.git', mockGitOps);
+      const result = await initializeOrchid('https://github.com/user/repo.git', {}, mockGitOps);
       
       expect(result.success).toBe(false);
       expect(result.message).toContain('Initialization failed');
@@ -226,15 +325,16 @@ describe('init.ts - Orchid Initialization', () => {
     });
 
     it('should succeed with valid repository', async () => {
-      // Mock that orchid is not initialized initially
+      // Mock that orchid is not initialized initially and directory is empty
       vi.mocked(existsSync).mockImplementation((path) => {
         const pathStr = String(path);
         if (pathStr.includes('main')) return false;
         return false;
       });
+      vi.mocked(readdirSync).mockReturnValue([] as any);
       
       const mockGitOps = new MockGitOperations(); // Success case
-      const result = await initializeOrchid('https://github.com/user/repo.git', mockGitOps);
+      const result = await initializeOrchid('https://github.com/user/repo.git', {}, mockGitOps);
       
       expect(result.success).toBe(true);
       expect(result.message).toContain('Successfully initialized');
@@ -247,11 +347,12 @@ describe('init.ts - Orchid Initialization', () => {
     });
 
     it('should reject invalid repository URL', async () => {
-      // Mock that orchid is not initialized initially
+      // Mock that orchid is not initialized initially and directory is empty
       vi.mocked(existsSync).mockReturnValue(false);
+      vi.mocked(readdirSync).mockReturnValue([] as any);
       
       const mockGitOps = new MockGitOperations();
-      const result = await initializeOrchid('invalid-url', mockGitOps);
+      const result = await initializeOrchid('invalid-url', {}, mockGitOps);
       
       expect(result.success).toBe(false);
       expect(result.message).toContain('Initialization failed');
@@ -260,7 +361,6 @@ describe('init.ts - Orchid Initialization', () => {
       expect(vi.mocked(mkdirSync)).toHaveBeenCalled();
     });
   });
-
   describe('dyson-swarm integration', () => {
     it('should initialize dyson-swarm if not already initialized', async () => {
       const { isInitialized, initialize } = await import('dyson-swarm');
@@ -275,8 +375,10 @@ describe('init.ts - Orchid Initialization', () => {
         return false;
       });
       
+      vi.mocked(readdirSync).mockReturnValue([] as any);
+      
       const mockGitOps = new MockGitOperations();
-      const result = await initializeOrchid('https://github.com/user/repo.git', mockGitOps);
+      const result = await initializeOrchid('https://github.com/user/repo.git', {}, mockGitOps);
       
       expect(result.success).toBe(true);
       expect(vi.mocked(isInitialized)).toHaveBeenCalled();
@@ -296,8 +398,10 @@ describe('init.ts - Orchid Initialization', () => {
         return false;
       });
       
+      vi.mocked(readdirSync).mockReturnValue([] as any);
+      
       const mockGitOps = new MockGitOperations();
-      const result = await initializeOrchid('https://github.com/user/repo.git', mockGitOps);
+      const result = await initializeOrchid('https://github.com/user/repo.git', {}, mockGitOps);
       
       expect(result.success).toBe(true);
       expect(vi.mocked(isInitialized)).toHaveBeenCalled();
