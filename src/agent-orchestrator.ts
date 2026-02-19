@@ -64,38 +64,6 @@ export class AgentOrchestrator {
     this.abortController = new AbortController();
     console.log("[orchestrator] Starting task monitor...");
 
-    // Recover existing sessions from OpenCode server
-    try {
-      const recoveredSessions = await this.sessionManager.recoverSessions();
-      console.log(`[orchestrator] Recovered ${recoveredSessions.length} existing sessions from OpenCode server`);
-
-      // Reconcile recovered sessions with open tasks
-      const openTasks = await this.taskManager.listTasks({ status: "open" });
-      const openTaskIds = new Set(openTasks.map((t: Task) => t.id));
-
-      for (const session of recoveredSessions) {
-        if (openTaskIds.has(session.taskId)) {
-          // Task is still open, restore the agent
-          const agentId = `${session.taskId}-implementor`;
-          this.runningAgents.set(session.taskId, {
-            taskId: session.taskId,
-            agentId,
-            startedAt: session.createdAt,
-            status: "running",
-            worktreePath: session.workingDirectory,
-            session,
-          });
-          console.log(`[orchestrator] Restored agent ${agentId} for task ${session.taskId}`);
-        } else {
-          // Task is no longer open, clean up the session
-          console.log(`[orchestrator] Task ${session.taskId} no longer open, cleaning up recovered session`);
-          await this.sessionManager.removeSession(session.taskId).catch(() => {});
-        }
-      }
-    } catch (error) {
-      console.error("[orchestrator] Error recovering sessions:", error);
-    }
-
     try {
       const stream = this.taskManager.listTaskStream({ status: "open" });
 

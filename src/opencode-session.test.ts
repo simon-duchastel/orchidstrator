@@ -71,6 +71,9 @@ describe("OpencodeSessionManager", () => {
 
   describe("createSession", () => {
     it("should create a session successfully", async () => {
+      // Mock empty list to indicate session doesn't exist yet
+      mocks.mockSessionList.mockResolvedValue({ data: [], error: null });
+      
       const mockResponse = {
         data: { id: "session-123" },
         error: null,
@@ -90,6 +93,8 @@ describe("OpencodeSessionManager", () => {
     });
 
     it("should use taskId as title", async () => {
+      mocks.mockSessionList.mockResolvedValue({ data: [], error: null });
+      
       const mockResponse = {
         data: { id: "session-456" },
         error: null,
@@ -105,42 +110,43 @@ describe("OpencodeSessionManager", () => {
     });
 
     it("should throw error if session already exists", async () => {
-      const mockResponse = {
-        data: { id: "session-789" },
+      // Mock existing session with matching title
+      mocks.mockSessionList.mockResolvedValue({
+        data: [{ id: "existing-session", title: "task-3", time: { created: Date.now() / 1000 } }],
         error: null,
-      };
-      mocks.mockSessionCreate.mockResolvedValue(mockResponse);
-
-      await sessionManager.createSession("task-3", {});
+      });
 
       await expect(
-        sessionManager.createSession("task-3", {  })
+        sessionManager.createSession("task-3", {})
       ).rejects.toThrow("Session for task task-3 already exists");
     });
 
     it("should throw error if session creation fails", async () => {
+      mocks.mockSessionList.mockResolvedValue({ data: [], error: null });
       mocks.mockSessionCreate.mockResolvedValue({
         data: null,
         error: { message: "Server error" },
       });
 
       await expect(
-        sessionManager.createSession("task-4", {  })
+        sessionManager.createSession("task-4", {})
       ).rejects.toThrow("Failed to create session");
     });
 
     it("should throw error if response data is null", async () => {
+      mocks.mockSessionList.mockResolvedValue({ data: [], error: null });
       mocks.mockSessionCreate.mockResolvedValue({
         data: null,
         error: null,
       });
 
       await expect(
-        sessionManager.createSession("task-5", {  })
+        sessionManager.createSession("task-5", {})
       ).rejects.toThrow("Failed to get session ID from create response");
     });
 
     it("should extract session ID from nested data field", async () => {
+      mocks.mockSessionList.mockResolvedValue({ data: [], error: null });
       mocks.mockSessionCreate.mockResolvedValue({
         data: { data: { id: "nested-session-123" } },
         error: null,
@@ -152,6 +158,7 @@ describe("OpencodeSessionManager", () => {
     });
 
     it("should extract session ID from sessionId field", async () => {
+      mocks.mockSessionList.mockResolvedValue({ data: [], error: null });
       mocks.mockSessionCreate.mockResolvedValue({
         data: { sessionId: "alt-session-123" },
         error: null,
@@ -168,6 +175,7 @@ describe("OpencodeSessionManager", () => {
         return false;
       });
 
+      mocks.mockSessionList.mockResolvedValue({ data: [], error: null });
       mocks.mockSessionCreate.mockResolvedValue({
         data: { id: "session-999" },
         error: null,
@@ -183,74 +191,107 @@ describe("OpencodeSessionManager", () => {
   });
 
   describe("getSession", () => {
-    it("should return session if it exists", async () => {
-      mocks.mockSessionCreate.mockResolvedValue({
-        data: { id: "session-abc" },
+    it("should return session if it exists in server", async () => {
+      mocks.mockSessionList.mockResolvedValue({
+        data: [{ id: "session-abc", title: "task-get", time: { created: 1704067200 } }],
         error: null,
       });
 
-      await sessionManager.createSession("task-get", {});
-
-      const session = sessionManager.getSession("task-get");
+      const session = await sessionManager.getSession("task-get");
 
       expect(session).toBeDefined();
       expect(session?.sessionId).toBe("session-abc");
+      expect(session?.taskId).toBe("task-get");
     });
 
-    it("should return undefined if session does not exist", () => {
-      const session = sessionManager.getSession("non-existent");
+    it("should return undefined if session does not exist in server", async () => {
+      mocks.mockSessionList.mockResolvedValue({
+        data: [],
+        error: null,
+      });
+
+      const session = await sessionManager.getSession("non-existent");
+      expect(session).toBeUndefined();
+    });
+
+    it("should return undefined if list query fails", async () => {
+      mocks.mockSessionList.mockResolvedValue({
+        data: null,
+        error: { message: "Query failed" },
+      });
+
+      const session = await sessionManager.getSession("task-error");
       expect(session).toBeUndefined();
     });
   });
 
   describe("getAllSessions", () => {
-    it("should return all sessions", async () => {
-      mocks.mockSessionCreate
-        .mockResolvedValueOnce({ data: { id: "session-1" }, error: null })
-        .mockResolvedValueOnce({ data: { id: "session-2" }, error: null });
+    it("should return all sessions from server", async () => {
+      mocks.mockSessionList.mockResolvedValue({
+        data: [
+          { id: "session-1", title: "task-a", time: { created: 1704067200 } },
+          { id: "session-2", title: "task-b", time: { created: 1704153600 } },
+        ],
+        error: null,
+      });
 
-      await sessionManager.createSession("task-a", {  });
-      await sessionManager.createSession("task-b", {  });
-
-      const sessions = sessionManager.getAllSessions();
+      const sessions = await sessionManager.getAllSessions();
 
       expect(sessions).toHaveLength(2);
       expect(sessions.map((s) => s.sessionId)).toContain("session-1");
       expect(sessions.map((s) => s.sessionId)).toContain("session-2");
     });
 
-    it("should return empty array when no sessions", () => {
-      const sessions = sessionManager.getAllSessions();
+    it("should return empty array when no sessions in server", async () => {
+      mocks.mockSessionList.mockResolvedValue({
+        data: [],
+        error: null,
+      });
+
+      const sessions = await sessionManager.getAllSessions();
+      expect(sessions).toEqual([]);
+    });
+
+    it("should return empty array when query fails", async () => {
+      mocks.mockSessionList.mockResolvedValue({
+        data: null,
+        error: { message: "Query failed" },
+      });
+
+      const sessions = await sessionManager.getAllSessions();
       expect(sessions).toEqual([]);
     });
   });
 
   describe("hasSession", () => {
-    it("should return true if session exists", async () => {
-      mocks.mockSessionCreate.mockResolvedValue({
-        data: { id: "session-exists" },
+    it("should return true if session exists in server", async () => {
+      mocks.mockSessionList.mockResolvedValue({
+        data: [{ id: "session-exists", title: "task-check", time: { created: 1704067200 } }],
         error: null,
       });
 
-      await sessionManager.createSession("task-check", {});
-
-      expect(sessionManager.hasSession("task-check")).toBe(true);
+      const hasSession = await sessionManager.hasSession("task-check");
+      expect(hasSession).toBe(true);
     });
 
-    it("should return false if session does not exist", () => {
-      expect(sessionManager.hasSession("task-missing")).toBe(false);
+    it("should return false if session does not exist in server", async () => {
+      mocks.mockSessionList.mockResolvedValue({
+        data: [],
+        error: null,
+      });
+
+      const hasSession = await sessionManager.hasSession("task-missing");
+      expect(hasSession).toBe(false);
     });
   });
 
   describe("removeSession", () => {
     it("should remove session successfully", async () => {
-      mocks.mockSessionCreate.mockResolvedValue({
-        data: { id: "session-remove" },
+      mocks.mockSessionList.mockResolvedValue({
+        data: [{ id: "session-remove", title: "task-remove", time: { created: 1704067200 } }],
         error: null,
       });
       mocks.mockSessionDelete.mockResolvedValue({ data: {}, error: null });
-
-      await sessionManager.createSession("task-remove", {});
 
       await sessionManager.removeSession("task-remove");
 
@@ -258,82 +299,100 @@ describe("OpencodeSessionManager", () => {
         path: { id: "session-remove" },
         query: { directory: "/test/sessions/task-remove" },
       });
-      expect(sessionManager.hasSession("task-remove")).toBe(false);
     });
 
     it("should throw error if session does not exist", async () => {
+      mocks.mockSessionList.mockResolvedValue({
+        data: [],
+        error: null,
+      });
+
       await expect(sessionManager.removeSession("non-existent")).rejects.toThrow(
         "Session for task non-existent not found"
       );
     });
 
-    it("should remove from tracking even if delete fails", async () => {
-      mocks.mockSessionCreate.mockResolvedValue({
-        data: { id: "session-fail" },
+    it("should throw error if delete fails", async () => {
+      mocks.mockSessionList.mockResolvedValue({
+        data: [{ id: "session-fail", title: "task-fail", time: { created: 1704067200 } }],
         error: null,
       });
       mocks.mockSessionDelete.mockRejectedValue(new Error("Delete failed"));
 
-      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-      await sessionManager.createSession("task-fail", {});
-
-      await sessionManager.removeSession("task-fail");
-
-      expect(sessionManager.hasSession("task-fail")).toBe(false);
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Error deleting session"),
-        expect.anything()
+      await expect(sessionManager.removeSession("task-fail")).rejects.toThrow(
+        "Failed to delete session"
       );
-
-      consoleSpy.mockRestore();
     });
   });
 
   describe("stopAllSessions", () => {
-    it("should stop all sessions", async () => {
-      mocks.mockSessionCreate
-        .mockResolvedValueOnce({ data: { id: "session-x" }, error: null })
-        .mockResolvedValueOnce({ data: { id: "session-y" }, error: null });
+    it("should stop all sessions from server", async () => {
+      mocks.mockSessionList.mockResolvedValue({
+        data: [
+          { id: "session-x", title: "task-x", time: { created: 1704067200 } },
+          { id: "session-y", title: "task-y", time: { created: 1704153600 } },
+        ],
+        error: null,
+      });
       mocks.mockSessionDelete.mockResolvedValue({ data: {}, error: null });
-
-      await sessionManager.createSession("task-x", {  });
-      await sessionManager.createSession("task-y", {  });
-
-      expect(sessionManager.getSessionCount()).toBe(2);
 
       await sessionManager.stopAllSessions();
 
-      expect(sessionManager.getSessionCount()).toBe(0);
+      expect(mocks.mockSessionDelete).toHaveBeenCalledTimes(2);
     });
 
     it("should handle errors gracefully when stopping sessions", async () => {
-      mocks.mockSessionCreate.mockResolvedValue({
-        data: { id: "session-z" },
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      mocks.mockSessionList.mockResolvedValue({
+        data: [
+          { id: "session-z", title: "task-z", time: { created: 1704067200 } },
+        ],
         error: null,
       });
       mocks.mockSessionDelete.mockRejectedValue(new Error("Delete error"));
 
-      await sessionManager.createSession("task-z", {  });
-
       // Should not throw
       await expect(sessionManager.stopAllSessions()).resolves.toBeUndefined();
-      expect(sessionManager.getSessionCount()).toBe(0);
+      expect(consoleSpy).toHaveBeenCalled();
+
+      consoleSpy.mockRestore();
+    });
+
+    it("should do nothing when no sessions exist", async () => {
+      mocks.mockSessionList.mockResolvedValue({
+        data: [],
+        error: null,
+      });
+
+      await sessionManager.stopAllSessions();
+
+      expect(mocks.mockSessionDelete).not.toHaveBeenCalled();
     });
   });
 
   describe("getSessionCount", () => {
-    it("should return correct count", async () => {
-      expect(sessionManager.getSessionCount()).toBe(0);
-
-      mocks.mockSessionCreate.mockResolvedValue({
-        data: { id: "session-count" },
+    it("should return correct count from server", async () => {
+      mocks.mockSessionList.mockResolvedValue({
+        data: [
+          { id: "session-1", title: "task-a", time: { created: 1704067200 } },
+          { id: "session-2", title: "task-b", time: { created: 1704153600 } },
+        ],
         error: null,
       });
 
-      await sessionManager.createSession("task-count", {});
+      const count = await sessionManager.getSessionCount();
+      expect(count).toBe(2);
+    });
 
-      expect(sessionManager.getSessionCount()).toBe(1);
+    it("should return 0 when no sessions exist", async () => {
+      mocks.mockSessionList.mockResolvedValue({
+        data: [],
+        error: null,
+      });
+
+      const count = await sessionManager.getSessionCount();
+      expect(count).toBe(0);
     });
   });
 });

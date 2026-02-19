@@ -2,7 +2,7 @@
  * OpenCode Session Manager
  *
  * Manages individual OpenCode sessions for each agent using the SDK's Session API.
- * Each agent gets its own isolated session associated with its worktree directory.
+ * Uses the OpenCode server as the source of truth for session state.
  */
 
 import { createOpencodeClient, type OpencodeClient, type Session } from "@opencode-ai/sdk";
@@ -38,11 +38,10 @@ export interface OpencodeSessionManagerOptions {
 /**
  * Manages OpenCode sessions for agents.
  *
- * Each session is an isolated OpenCode session created via the SDK's Session API.
- * Sessions are associated with the agent's worktree directory.
+ * Uses the OpenCode server as the source of truth for session state.
+ * All session queries go directly to the SDK rather than maintaining local state.
  */
 export class OpencodeSessionManager {
-  private sessions: Map<string, AgentSession> = new Map();
   private sessionsDir: string;
   private client: OpencodeClient;
 
@@ -70,7 +69,9 @@ export class OpencodeSessionManager {
     taskId: string,
     options: CreateSessionOptions
   ): Promise<AgentSession> {
-    if (this.sessions.has(taskId)) {
+    // Check if session already exists by querying the server
+    const existingSession = await this.getSession(taskId);
+    if (existingSession) {
       throw new Error(`Session for task ${taskId} already exists`);
     }
 
@@ -82,8 +83,7 @@ export class OpencodeSessionManager {
     }
 
     try {
-      // Create a new session via the SDK using the stored client
-      // Parameters are passed via query for directory and body for other options
+      // Create a new session via the SDK
       const createResponse = await this.client.session.create({
         query: {
           directory: workingDirectory,
@@ -104,7 +104,7 @@ export class OpencodeSessionManager {
         throw new Error("Failed to get session ID from create response");
       }
 
-      const agentSession: AgentSession = {
+      return {
         sessionId,
         taskId,
         workingDirectory,
@@ -112,10 +112,6 @@ export class OpencodeSessionManager {
         createdAt: new Date(),
         status: "running",
       };
-
-      this.sessions.set(taskId, agentSession);
-
-      return agentSession;
     } catch (error) {
       throw new Error(
         `Failed to create session for task ${taskId}: ${error instanceof Error ? error.message : "Unknown error"}`
@@ -154,31 +150,82 @@ export class OpencodeSessionManager {
 
   /**
    * Get a session by task ID.
+   * Queries the OpenCode server for the session.
    *
    * @param taskId - The task identifier
    * @returns The session info or undefined if not found
    */
-  getSession(taskId: string): AgentSession | undefined {
-    return this.sessions.get(taskId);
+  async getSession(taskId: string): Promise<AgentSession | undefined> {
+    try {
+      const response = await this.client.session.list({});
+
+      if (response.error || !response.data) {
+        return undefined;
+      }
+
+      const sessions = response.data as Session[];
+      const session = sessions.find((s) => s.title === taskId);
+
+      if (!session) {
+        return undefined;
+      }
+
+      const workingDirectory = join(this.sessionsDir, taskId);
+
+      return {
+        sessionId: session.id,
+        taskId,
+        workingDirectory,
+        client: this.client,
+        createdAt: new Date(session.time.created * 1000),
+        status: "running",
+      };
+    } catch (error) {
+      console.error(`[session-manager] Error getting session for task ${taskId}:`, error);
+      return undefined;
+    }
   }
 
   /**
    * Get all active sessions.
+   * Queries the OpenCode server for all sessions.
    *
    * @returns Array of all session info
    */
-  getAllSessions(): AgentSession[] {
-    return Array.from(this.sessions.values());
+  async getAllSessions(): Promise<AgentSession[]> {
+    try {
+      const response = await this.client.session.list({});
+
+      if (response.error || !response.data) {
+        return [];
+      }
+
+      const sessions = response.data as Session[];
+
+      return sessions.map((session) => ({
+        sessionId: session.id,
+        taskId: session.title,
+        workingDirectory: join(this.sessionsDir, session.title),
+        client: this.client,
+        createdAt: new Date(session.time.created * 1000),
+        status: "running",
+      }));
+    } catch (error) {
+      console.error("[session-manager] Error getting all sessions:", error);
+      return [];
+    }
   }
 
   /**
    * Check if a session exists for a task.
+   * Queries the OpenCode server to verify.
    *
    * @param taskId - The task identifier
    * @returns true if the session exists
    */
-  hasSession(taskId: string): boolean {
-    return this.sessions.has(taskId);
+  async hasSession(taskId: string): Promise<boolean> {
+    const session = await this.getSession(taskId);
+    return session !== undefined;
   }
 
   /**
@@ -188,16 +235,14 @@ export class OpencodeSessionManager {
    * @throws Error if session doesn't exist
    */
   async removeSession(taskId: string): Promise<void> {
-    const session = this.sessions.get(taskId);
+    const session = await this.getSession(taskId);
     if (!session) {
       throw new Error(`Session for task ${taskId} not found`);
     }
 
-    session.status = "stopping";
-
     try {
       // Delete the session via the SDK
-      await session.client.session.delete({
+      await this.client.session.delete({
         path: {
           id: session.sessionId,
         },
@@ -206,88 +251,33 @@ export class OpencodeSessionManager {
         },
       });
     } catch (error) {
-      // Log but don't throw - we still want to clean up our tracking
-      console.error(
-        `[session-manager] Error deleting session ${session.sessionId} for task ${taskId}:`,
-        error
+      throw new Error(
+        `Failed to delete session ${session.sessionId} for task ${taskId}: ${error instanceof Error ? error.message : "Unknown error"}`
       );
-    }
-
-    // Remove from our tracking
-    this.sessions.delete(taskId);
-  }
-
-  /**
-   * Recover existing sessions from the OpenCode server.
-   * Queries the server for existing sessions and reconnects to ones
-   * that match our task pattern (by title prefix).
-   *
-   * @returns Array of recovered sessions
-   */
-  async recoverSessions(): Promise<AgentSession[]> {
-    const recoveredSessions: AgentSession[] = [];
-
-    try {
-      const response = await this.client.session.list({});
-
-      if (response.error) {
-        console.error("[session-manager] Failed to list existing sessions:", response.error);
-        return recoveredSessions;
-      }
-
-      const existingSessions = response.data as Session[];
-
-      for (const session of existingSessions) {
-        // Use the title as taskId directly (we set title = taskId when creating)
-        const taskId = session.title;
-
-        // Check if worktree directory exists
-        const workingDirectory = join(this.sessionsDir, taskId);
-        if (!existsSync(workingDirectory)) {
-          console.log(`[session-manager] Skipping session ${session.id} - worktree not found at ${workingDirectory}`);
-          continue;
-        }
-
-        // Check if we already have this session tracked
-        if (this.sessions.has(taskId)) {
-          console.log(`[session-manager] Session for task ${taskId} already tracked, skipping`);
-          continue;
-        }
-
-        const agentSession: AgentSession = {
-          sessionId: session.id,
-          taskId,
-          workingDirectory,
-          client: this.client,
-          createdAt: new Date(session.time.created * 1000),
-          status: "running",
-        };
-
-        this.sessions.set(taskId, agentSession);
-        recoveredSessions.push(agentSession);
-        console.log(`[session-manager] Recovered session ${session.id} for task ${taskId}`);
-      }
-
-      console.log(`[session-manager] Recovered ${recoveredSessions.length} existing sessions`);
-      return recoveredSessions;
-    } catch (error) {
-      console.error("[session-manager] Error recovering sessions:", error);
-      return recoveredSessions;
     }
   }
 
   /**
    * Stop all active sessions.
+   * Queries the server for all sessions and removes them.
    */
   async stopAllSessions(): Promise<void> {
-    const taskIds = Array.from(this.sessions.keys());
-    await Promise.all(taskIds.map((id) => this.removeSession(id).catch(() => {})));
+    const sessions = await this.getAllSessions();
+    await Promise.all(
+      sessions.map((session) =>
+        this.removeSession(session.taskId).catch((error) => {
+          console.error(`[session-manager] Error stopping session ${session.sessionId}:`, error);
+        })
+      )
+    );
   }
 
   /**
    * Get the number of active sessions.
+   * Queries the OpenCode server for the count.
    */
-  getSessionCount(): number {
-    return this.sessions.size;
+  async getSessionCount(): Promise<number> {
+    const sessions = await this.getAllSessions();
+    return sessions.length;
   }
 }
