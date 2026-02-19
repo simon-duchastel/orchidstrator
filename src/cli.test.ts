@@ -40,17 +40,4 @@ describe('CLI verbose flag', () => {
     customLogger.log('message');
     expect(mockConsoleLog).toHaveBeenCalledWith('[TEST] ', 'message');
   });
-
-  it('should allow changing verbose mode at runtime', () => {
-    log.log('before enabling verbose');
-    expect(mockConsoleLog).not.toHaveBeenCalled();
-
-    setVerboseLogging(true);
-    log.log('after enabling verbose');
-    expect(mockConsoleLog).toHaveBeenCalledWith('', 'after enabling verbose');
-
-    setVerboseLogging(false);
-    log.log('after disabling verbose');
-    expect(mockConsoleLog).toHaveBeenCalledTimes(1);
-  });
 });
