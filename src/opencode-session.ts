@@ -69,7 +69,7 @@ export class OpencodeSessionManager {
     taskId: string,
     options: CreateSessionOptions
   ): Promise<AgentSession> {
-    // Check if session already exists by querying the server
+    // Check if session already exists
     const existingSession = await this.getSession(taskId);
     if (existingSession) {
       throw new Error(`Session for task ${taskId} already exists`);
