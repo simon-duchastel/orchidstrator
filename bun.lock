@@ -10,7 +10,7 @@
         "@cliffy/table": "npm:@jsr/cliffy__table@1.0.0",
         "@opencode-ai/sdk": "1.2.6",
         "cliffy-flat-help": "1.2.2",
-        "dyson-swarm": "1.3.2",
+        "dyson-swarm": "1.4.0",
         "open": "11.0.0",
         "simple-git": "3.31.1",
       },
@@ -215,7 +215,7 @@
 
     "@vitest/utils": ["@vitest/utils@4.0.18", "", { "dependencies": { "@vitest/pretty-format": "4.0.18", "tinyrainbow": "^3.0.3" } }, "sha512-msMRKLMVLWygpK3u2Hybgi4MNjcYJvwTb0Ru09+fOyCXIgT5raYP041DRRdiJiI3k/2U6SEbAETB3YtBrUkCFA=="],
 
-    "acorn": ["acorn@8.15.0", "", { "bin": { "acorn": "bin/acorn" } }, "sha512-NZyJarBfL7nWwIq+FDL6Zp/yHEhePMNnnJ0y3qfieCrmNvYct8uvtiV41UvlSe6apAfk0fY1FbWx+NwfmpvtTg=="],
+    "acorn": ["acorn@8.16.0", "", { "bin": { "acorn": "bin/acorn" } }, "sha512-UVJyE9MttOsBQIDKw1skb9nAwQuR5wuGD3+82K6JgJlm/Y+KI92oNsMNGZCYdDsVtRHSak0pcV5Dno5+4jh9sw=="],
 
     "any-promise": ["any-promise@1.3.0", "", {}, "sha512-7UvmKalWRt1wgjL1RrGxoSJW/0QZFIegpeGvZG9kjp8vrRu55XTHbwnqq2GpXm9uLbcuhxm3IqX9OB4MZR1b2A=="],
 
@@ -249,7 +249,7 @@
 
     "define-lazy-prop": ["define-lazy-prop@3.0.0", "", {}, "sha512-N+MeXYoqr3pOgn8xfyRPREN7gHakLYjhsHhWGT3fWAiL4IkAt0iDw14QiiEm2bE30c5XX5q0FtAA3CK5f9/BUg=="],
 
-    "dyson-swarm": ["dyson-swarm@1.3.2", "", { "dependencies": { "proper-lockfile": "4.1.2", "uuid": "13.0.0" } }, "sha512-mWsNdLIctqeErTdDlhdm1Qno3nFjsU82X08f+yrN8MEsk+KrGycB+/iImrOw/MToLyDxY4QR67SQ4Agaf7t6Xw=="],
+    "dyson-swarm": ["dyson-swarm@1.4.0", "", { "dependencies": { "proper-lockfile": "4.1.2", "uuid": "13.0.0" } }, "sha512-SSm/lXHuo4H7io3SpEBEVuoHwR4CoYv/44NiZzKliNTQfaMDgLqCu0eHriojvF5qezrCu85mfMHSedEzbkJS9w=="],
 
     "es-module-lexer": ["es-module-lexer@1.7.0", "", {}, "sha512-jEQoCwk8hyb2AZziIOLhDqpm5+2ww5uIE6lkO/6jcOCusfk6LhMHpXXfBLXTZ7Ydyt0j4VoUQv6uGNYbdW+kBA=="],
 
