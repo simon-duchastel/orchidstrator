@@ -17,6 +17,7 @@ import {
 } from "./opencode-session.js";
 import { fillAgentPromptTemplate } from "./templates.js";
 import { log } from "./utils/logger.js";
+import { ReviewAgent } from "./review-agent.js";
 
 export interface AgentInfo {
   taskId: string;
@@ -32,6 +33,7 @@ export interface AgentOrchestratorOptions {
   worktreeManager?: WorktreeManager;
   sessionManager?: OpencodeSessionManager;
   opencodeBaseUrl: string;
+  reviewAgent?: ReviewAgent;
 }
 
 export class AgentOrchestrator {
@@ -41,6 +43,7 @@ export class AgentOrchestrator {
   private worktreeManager: WorktreeManager;
   private sessionManager: OpencodeSessionManager;
   private cwdProvider: () => string;
+  private reviewAgent: ReviewAgent;
 
   constructor(options: AgentOrchestratorOptions) {
     this.cwdProvider = options.cwdProvider ?? (() => process.cwd());
@@ -52,6 +55,11 @@ export class AgentOrchestrator {
     this.sessionManager = options.sessionManager ?? new OpencodeSessionManager({
       sessionsDir: worktreesDir,
       baseUrl: options.opencodeBaseUrl,
+    });
+
+    // Initialize review agent for monitoring idle sessions
+    this.reviewAgent = options.reviewAgent ?? new ReviewAgent({
+      sessionManager: this.sessionManager,
     });
   }
 
@@ -97,6 +105,14 @@ export class AgentOrchestrator {
     }
 
     this.runningAgents.clear();
+    
+    // Stop all review agent monitoring
+    try {
+      this.reviewAgent.stopAllMonitoring();
+      log.log("[orchestrator] All review agent monitoring stopped");
+    } catch (error) {
+      log.error("[orchestrator] Error stopping review agent monitoring:", error);
+    }
     
     // Stop all remaining sessions (in case any weren't cleaned up)
     try {
@@ -208,6 +224,9 @@ export class AgentOrchestrator {
       session,
     });
 
+    // Start monitoring for idle state to trigger review agent
+    await this.reviewAgent.startMonitoring(session);
+
     log.log(`[orchestrator] Agent ${agentId} started for task ${taskId}`);
   }
 
@@ -219,6 +238,11 @@ export class AgentOrchestrator {
 
     agent.status = "stopping";
     log.log(`[orchestrator] Stopping agent ${agent.agentId} for task ${taskId}`);
+
+    // Stop monitoring for idle state
+    if (agent.session) {
+      this.reviewAgent.stopMonitoring(agent.session.sessionId);
+    }
 
     // Remove the OpenCode session if it exists
     if (agent.session) {
@@ -250,5 +274,9 @@ export class AgentOrchestrator {
 
   isRunning(): boolean {
     return this.abortController !== null;
+  }
+
+  getReviewAgent(): ReviewAgent {
+    return this.reviewAgent;
   }
 }

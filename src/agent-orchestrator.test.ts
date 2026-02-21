@@ -16,6 +16,11 @@ const mocks = vi.hoisted(() => {
   const mockGetSession = vi.fn();
   const mockRecoverSessions = vi.fn();
   const mockSendMessage = vi.fn();
+  const mockStartMonitoring = vi.fn();
+  const mockStopMonitoring = vi.fn();
+  const mockStopAllMonitoring = vi.fn();
+  const mockIsMonitoring = vi.fn();
+  const mockGetMonitoredCount = vi.fn();
   
   class MockTaskManager {
     listTaskStream = mockListTaskStream;
@@ -33,6 +38,14 @@ const mocks = vi.hoisted(() => {
     recoverSessions = mockRecoverSessions;
     sendMessage = mockSendMessage;
   }
+
+  class MockReviewAgent {
+    startMonitoring = mockStartMonitoring;
+    stopMonitoring = mockStopMonitoring;
+    stopAllMonitoring = mockStopAllMonitoring;
+    isMonitoring = mockIsMonitoring;
+    getMonitoredCount = mockGetMonitoredCount;
+  }
   
   return {
     mockListTaskStream,
@@ -49,8 +62,14 @@ const mocks = vi.hoisted(() => {
     mockGetSession,
     mockRecoverSessions,
     mockSendMessage,
+    mockStartMonitoring,
+    mockStopMonitoring,
+    mockStopAllMonitoring,
+    mockIsMonitoring,
+    mockGetMonitoredCount,
     MockTaskManager,
     MockSessionManager,
+    MockReviewAgent,
   };
 });
 
@@ -77,10 +96,15 @@ vi.mock("./opencode-session.js", () => ({
   OpencodeSessionManager: mocks.MockSessionManager,
 }));
 
+vi.mock("./review-agent.js", () => ({
+  ReviewAgent: mocks.MockReviewAgent,
+}));
+
 describe("AgentOrchestrator", () => {
   let orchestrator: AgentOrchestrator;
   let mockWorktreeManager: any;
   let mockSessionManager: any;
+  let mockReviewAgent: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -102,13 +126,24 @@ describe("AgentOrchestrator", () => {
       recoverSessions: mocks.mockRecoverSessions,
       sendMessage: mocks.mockSendMessage,
     };
+    mockReviewAgent = {
+      startMonitoring: mocks.mockStartMonitoring,
+      stopMonitoring: mocks.mockStopMonitoring,
+      stopAllMonitoring: mocks.mockStopAllMonitoring,
+      isMonitoring: mocks.mockIsMonitoring,
+      getMonitoredCount: mocks.mockGetMonitoredCount,
+    };
     mocks.mockRecoverSessions.mockResolvedValue([]);
     mocks.mockListTasks.mockResolvedValue([]);
     mocks.mockSendMessage.mockResolvedValue(undefined);
+    mocks.mockStartMonitoring.mockResolvedValue(undefined);
+    mocks.mockStopMonitoring.mockReturnValue(undefined);
+    mocks.mockStopAllMonitoring.mockReturnValue(undefined);
     orchestrator = new AgentOrchestrator({ 
       worktreeManager: mockWorktreeManager,
       sessionManager: mockSessionManager,
       opencodeBaseUrl: "http://localhost:4096",
+      reviewAgent: mockReviewAgent,
     });
   });
 
@@ -771,6 +806,151 @@ describe("AgentOrchestrator", () => {
       expect(mocks.mockSessionRemove).toHaveBeenCalledWith("task-msg-fail");
       // Worktree should have been cleaned up
       expect(mocks.mockWorktreeRemove).toHaveBeenCalled();
+    });
+  });
+
+  describe("review agent integration", () => {
+    it("should start monitoring when agent is started", async () => {
+      const mockSession = {
+        sessionId: "session-review-1",
+        taskId: "task-review-1",
+        workingDirectory: "/test/worktrees/task-review-1",
+        client: {},
+        createdAt: new Date(),
+        status: "running" as const,
+      };
+
+      mocks.mockAssignTask.mockResolvedValue(undefined);
+      mocks.mockWorktreeCreate.mockResolvedValue(true);
+      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockListTasks.mockResolvedValue([
+        { id: "task-review-1", frontmatter: { title: "Test" }, description: "", status: "open" },
+      ]);
+
+      const streamIterator = (async function* () {
+        yield [{ id: "task-review-1", frontmatter: { title: "Test" }, description: "", status: "open" }];
+      })();
+      mocks.mockListTaskStream.mockReturnValue(streamIterator);
+
+      orchestrator.start();
+      await vi.runAllTimersAsync();
+
+      expect(mocks.mockStartMonitoring).toHaveBeenCalledWith(mockSession);
+      expect(mocks.mockStartMonitoring).toHaveBeenCalledTimes(1);
+    });
+
+    it("should stop monitoring when agent is stopped", async () => {
+      const mockSession = {
+        sessionId: "session-review-2",
+        taskId: "task-review-2",
+        workingDirectory: "/test/worktrees/task-review-2",
+        client: {},
+        createdAt: new Date(),
+        status: "running" as const,
+      };
+
+      mocks.mockAssignTask.mockResolvedValue(undefined);
+      mocks.mockUnassignTask.mockResolvedValue(undefined);
+      mocks.mockWorktreeCreate.mockResolvedValue(true);
+      mocks.mockWorktreeRemove.mockResolvedValue(true);
+      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockListTasks.mockResolvedValue([
+        { id: "task-review-2", frontmatter: { title: "Test" }, description: "", status: "open" },
+      ]);
+
+      const streamIterator = (async function* () {
+        yield [{ id: "task-review-2", frontmatter: { title: "Test" }, description: "", status: "open" }];
+        yield [];
+      })();
+      mocks.mockListTaskStream.mockReturnValue(streamIterator);
+
+      orchestrator.start();
+      await vi.runAllTimersAsync();
+
+      expect(mocks.mockStartMonitoring).toHaveBeenCalledWith(mockSession);
+
+      // Verify stopMonitoring was called when agent stopped
+      expect(mocks.mockStopMonitoring).toHaveBeenCalledWith(mockSession.sessionId);
+    });
+
+    it("should stop all monitoring when orchestrator stops", async () => {
+      const mockSession = {
+        sessionId: "session-review-3",
+        taskId: "task-review-3",
+        workingDirectory: "/test/worktrees/task-review-3",
+        client: {},
+        createdAt: new Date(),
+        status: "running" as const,
+      };
+
+      mocks.mockAssignTask.mockResolvedValue(undefined);
+      mocks.mockWorktreeCreate.mockResolvedValue(true);
+      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockListTasks.mockResolvedValue([
+        { id: "task-review-3", frontmatter: { title: "Test" }, description: "", status: "open" },
+      ]);
+
+      const streamIterator = (async function* () {
+        yield [{ id: "task-review-3", frontmatter: { title: "Test" }, description: "", status: "open" }];
+      })();
+      mocks.mockListTaskStream.mockReturnValue(streamIterator);
+
+      orchestrator.start();
+      await vi.runAllTimersAsync();
+
+      await orchestrator.stop();
+
+      expect(mocks.mockStopAllMonitoring).toHaveBeenCalled();
+    });
+
+    it("should provide access to review agent instance", () => {
+      const reviewAgent = orchestrator.getReviewAgent();
+      expect(reviewAgent).toBe(mockReviewAgent);
+    });
+
+    it("should start monitoring for multiple agents", async () => {
+      const mockSession1 = {
+        sessionId: "session-multi-1",
+        taskId: "task-multi-1",
+        workingDirectory: "/test/worktrees/task-multi-1",
+        client: {},
+        createdAt: new Date(),
+        status: "running" as const,
+      };
+
+      const mockSession2 = {
+        sessionId: "session-multi-2",
+        taskId: "task-multi-2",
+        workingDirectory: "/test/worktrees/task-multi-2",
+        client: {},
+        createdAt: new Date(),
+        status: "running" as const,
+      };
+
+      mocks.mockAssignTask.mockResolvedValue(undefined);
+      mocks.mockWorktreeCreate.mockResolvedValue(true);
+      mocks.mockSessionCreate
+        .mockResolvedValueOnce(mockSession1)
+        .mockResolvedValueOnce(mockSession2);
+      mocks.mockListTasks.mockResolvedValue([
+        { id: "task-multi-1", frontmatter: { title: "Test 1" }, description: "", status: "open" },
+        { id: "task-multi-2", frontmatter: { title: "Test 2" }, description: "", status: "open" },
+      ]);
+
+      const streamIterator = (async function* () {
+        yield [
+          { id: "task-multi-1", frontmatter: { title: "Test 1" }, description: "", status: "open" },
+          { id: "task-multi-2", frontmatter: { title: "Test 2" }, description: "", status: "open" },
+        ];
+      })();
+      mocks.mockListTaskStream.mockReturnValue(streamIterator);
+
+      orchestrator.start();
+      await vi.runAllTimersAsync();
+
+      expect(mocks.mockStartMonitoring).toHaveBeenCalledTimes(2);
+      expect(mocks.mockStartMonitoring).toHaveBeenCalledWith(mockSession1);
+      expect(mocks.mockStartMonitoring).toHaveBeenCalledWith(mockSession2);
     });
   });
 });
