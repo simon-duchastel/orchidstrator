@@ -5,7 +5,7 @@ import {
   createAuthHeader,
   validateCredentials,
   CREDENTIAL_LENGTH,
-} from "./store";
+} from "./auth";
 
 // Mock the crypto module
 vi.mock("node:crypto", () => ({

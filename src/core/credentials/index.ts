@@ -5,4 +5,4 @@ export {
   validateCredentials,
   CREDENTIAL_LENGTH,
   type ServerCredentials,
-} from './store.js';
+} from './auth.js';
