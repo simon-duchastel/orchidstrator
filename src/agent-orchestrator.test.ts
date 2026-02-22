@@ -16,6 +16,8 @@ const mocks = vi.hoisted(() => {
   const mockGetSession = vi.fn();
   const mockRecoverSessions = vi.fn();
   const mockSendMessage = vi.fn();
+  const mockGetClient = vi.fn();
+  const mockGlobalEvent = vi.fn();
   
   class MockTaskManager {
     listTaskStream = mockListTaskStream;
@@ -32,6 +34,7 @@ const mocks = vi.hoisted(() => {
     getSession = mockGetSession;
     recoverSessions = mockRecoverSessions;
     sendMessage = mockSendMessage;
+    getClient = mockGetClient;
   }
   
   return {
@@ -49,6 +52,8 @@ const mocks = vi.hoisted(() => {
     mockGetSession,
     mockRecoverSessions,
     mockSendMessage,
+    mockGetClient,
+    mockGlobalEvent,
     MockTaskManager,
     MockSessionManager,
   };
@@ -101,10 +106,25 @@ describe("AgentOrchestrator", () => {
       getSession: mocks.mockGetSession,
       recoverSessions: mocks.mockRecoverSessions,
       sendMessage: mocks.mockSendMessage,
+      getClient: mocks.mockGetClient,
     };
     mocks.mockRecoverSessions.mockResolvedValue([]);
     mocks.mockListTasks.mockResolvedValue([]);
     mocks.mockSendMessage.mockResolvedValue(undefined);
+    
+    // Setup mock client with global.event
+    const mockEventStream = {
+      stream: (async function* () {
+        // Empty event stream by default
+      })(),
+    };
+    mocks.mockGlobalEvent.mockResolvedValue(mockEventStream);
+    mocks.mockGetClient.mockReturnValue({
+      global: {
+        event: mocks.mockGlobalEvent,
+      },
+    });
+    
     orchestrator = new AgentOrchestrator({ 
       worktreeManager: mockWorktreeManager,
       sessionManager: mockSessionManager,
@@ -130,6 +150,19 @@ describe("AgentOrchestrator", () => {
       await startPromise;
 
       expect(mocks.mockListTaskStream).toHaveBeenCalledWith({ status: "open" });
+    });
+
+    it("should start event listener for session.idle events", async () => {
+      const streamIterator = (async function* () {
+        yield [];
+      })();
+      mocks.mockListTaskStream.mockReturnValue(streamIterator);
+
+      orchestrator.start();
+      await vi.runAllTimersAsync();
+
+      expect(mocks.mockGetClient).toHaveBeenCalled();
+      expect(mocks.mockGlobalEvent).toHaveBeenCalled();
     });
 
     it("should not start if already running", async () => {
@@ -170,14 +203,15 @@ describe("AgentOrchestrator", () => {
       mocks.mockUnassignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
       mocks.mockWorktreeRemove.mockResolvedValue(true);
-      mocks.mockSessionCreate.mockResolvedValue({
+      const mockSession = {
         sessionId: "session-stop",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         client: {},
         createdAt: new Date(),
         status: "running",
-      });
+      };
+      mocks.mockSessionCreate.mockResolvedValue(mockSession);
       mocks.mockListTasks.mockResolvedValue([
         { id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" },
       ]);
@@ -203,14 +237,15 @@ describe("AgentOrchestrator", () => {
     it("should start an agent for a new open task", async () => {
       mocks.mockAssignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
-      mocks.mockSessionCreate.mockResolvedValue({
+      const mockSession = {
         sessionId: "session-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         client: {},
         createdAt: new Date(),
         status: "running",
-      });
+      };
+      mocks.mockSessionCreate.mockResolvedValue(mockSession);
       mocks.mockListTasks.mockResolvedValue([
         { id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" },
       ]);
@@ -235,14 +270,15 @@ describe("AgentOrchestrator", () => {
     it("should not start duplicate agents for the same task", async () => {
       mocks.mockAssignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
-      mocks.mockSessionCreate.mockResolvedValue({
+      const mockSession = {
         sessionId: "session-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         client: {},
         createdAt: new Date(),
         status: "running",
-      });
+      };
+      mocks.mockSessionCreate.mockResolvedValue(mockSession);
       mocks.mockListTasks.mockResolvedValue([
         { id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" },
       ]);
@@ -267,14 +303,15 @@ describe("AgentOrchestrator", () => {
       mocks.mockUnassignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
       mocks.mockWorktreeRemove.mockResolvedValue(true);
-      mocks.mockSessionCreate.mockResolvedValue({
+      const mockSession = {
         sessionId: "session-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         client: {},
         createdAt: new Date(),
         status: "running",
-      });
+      };
+      mocks.mockSessionCreate.mockResolvedValue(mockSession);
       mocks.mockListTasks.mockResolvedValue([
         { id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" },
       ]);
@@ -297,14 +334,15 @@ describe("AgentOrchestrator", () => {
       mocks.mockUnassignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
       mocks.mockWorktreeRemove.mockResolvedValue(true);
-      mocks.mockSessionCreate.mockResolvedValue({
+      const mockSession = {
         sessionId: "session-test",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         client: {},
         createdAt: new Date(),
         status: "running",
-      });
+      };
+      mocks.mockSessionCreate.mockResolvedValue(mockSession);
       mocks.mockListTasks.mockResolvedValue([
         { id: "task-1", frontmatter: { title: "Test 1" }, description: "", status: "open" },
         { id: "task-2", frontmatter: { title: "Test 2" }, description: "", status: "open" },
@@ -333,14 +371,15 @@ describe("AgentOrchestrator", () => {
     it("should create a worktree when starting an agent", async () => {
       mocks.mockAssignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
-      mocks.mockSessionCreate.mockResolvedValue({
+      const mockSession = {
         sessionId: "session-123",
         taskId: "task-123",
         workingDirectory: "/test/worktrees/task-123",
         client: {},
         createdAt: new Date(),
         status: "running",
-      });
+      };
+      mocks.mockSessionCreate.mockResolvedValue(mockSession);
 
       mocks.mockListTasks.mockResolvedValue([
         { id: "task-123", frontmatter: { title: "Test" }, description: "", status: "open" },
@@ -368,14 +407,15 @@ describe("AgentOrchestrator", () => {
       mocks.mockUnassignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
       mocks.mockWorktreeRemove.mockResolvedValue(true);
-      mocks.mockSessionCreate.mockResolvedValue({
+      const mockSession = {
         sessionId: "session-123",
         taskId: "task-123",
         workingDirectory: "/test/worktrees/task-123",
         client: {},
         createdAt: new Date(),
         status: "running",
-      });
+      };
+      mocks.mockSessionCreate.mockResolvedValue(mockSession);
 
       mocks.mockListTasks.mockResolvedValue([
         { id: "task-123", frontmatter: { title: "Test" }, description: "", status: "open" },
@@ -400,14 +440,15 @@ describe("AgentOrchestrator", () => {
       mocks.mockUnassignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
       mocks.mockWorktreeRemove.mockResolvedValue(true);
-      mocks.mockSessionCreate.mockResolvedValue({
+      const mockSession = {
         sessionId: "session-456",
         taskId: "task-456",
         workingDirectory: "/test/worktrees/task-456",
         client: {},
         createdAt: new Date(),
         status: "running",
-      });
+      };
+      mocks.mockSessionCreate.mockResolvedValue(mockSession);
 
       mocks.mockListTasks.mockResolvedValue([
         { id: "task-456", frontmatter: { title: "Test" }, description: "", status: "open" },
@@ -432,14 +473,15 @@ describe("AgentOrchestrator", () => {
       mocks.mockUnassignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
       mocks.mockWorktreeRemove.mockRejectedValue(new Error("Failed to remove worktree"));
-      mocks.mockSessionCreate.mockResolvedValue({
+      const mockSession = {
         sessionId: "session-789",
         taskId: "task-789",
         workingDirectory: "/test/worktrees/task-789",
         client: {},
         createdAt: new Date(),
         status: "running",
-      });
+      };
+      mocks.mockSessionCreate.mockResolvedValue(mockSession);
       mocks.mockListTasks.mockResolvedValue([
         { id: "task-789", frontmatter: { title: "Test" }, description: "", status: "open" },
       ]);
@@ -476,14 +518,15 @@ describe("AgentOrchestrator", () => {
     it("should create unique worktree paths for different tasks", async () => {
       mocks.mockAssignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
-      mocks.mockSessionCreate.mockResolvedValue({
+      const mockSession = {
         sessionId: "session-alpha",
         taskId: "task-alpha",
         workingDirectory: "/test/worktrees/task-alpha",
         client: {},
         createdAt: new Date(),
         status: "running",
-      });
+      };
+      mocks.mockSessionCreate.mockResolvedValue(mockSession);
       mocks.mockListTasks.mockResolvedValue([
         { id: "task-alpha", frontmatter: { title: "Alpha" }, description: "", status: "open" },
         { id: "task-beta", frontmatter: { title: "Beta" }, description: "", status: "open" },
@@ -536,14 +579,15 @@ describe("AgentOrchestrator", () => {
     it("should create OpenCode session when starting an agent", async () => {
       mocks.mockAssignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
-      mocks.mockSessionCreate.mockResolvedValue({
+      const mockSession = {
         sessionId: "session-123",
         taskId: "task-session",
         workingDirectory: "/test/worktrees/task-session",
         client: {},
         createdAt: new Date(),
         status: "running",
-      });
+      };
+      mocks.mockSessionCreate.mockResolvedValue(mockSession);
       mocks.mockListTasks.mockResolvedValue([
         { id: "task-session", frontmatter: { title: "Test Session" }, description: "", status: "open" },
       ]);
@@ -575,14 +619,15 @@ describe("AgentOrchestrator", () => {
       mocks.mockUnassignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
       mocks.mockWorktreeRemove.mockResolvedValue(true);
-      mocks.mockSessionCreate.mockResolvedValue({
+      const mockSession = {
         sessionId: "session-stop",
         taskId: "task-stop",
         workingDirectory: "/test/worktrees/task-stop",
         client: {},
         createdAt: new Date(),
         status: "running",
-      });
+      };
+      mocks.mockSessionCreate.mockResolvedValue(mockSession);
       mocks.mockSessionRemove.mockResolvedValue(undefined);
       mocks.mockListTasks.mockResolvedValue([
         { id: "task-stop", frontmatter: { title: "Test" }, description: "", status: "open" },
@@ -626,14 +671,15 @@ describe("AgentOrchestrator", () => {
       mocks.mockUnassignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
       mocks.mockWorktreeRemove.mockResolvedValue(true);
-      mocks.mockSessionCreate.mockResolvedValue({
+      const mockSession = {
         sessionId: "session-fail-remove",
         taskId: "task-fail-remove",
         workingDirectory: "/test/worktrees/task-fail-remove",
         client: {},
         createdAt: new Date(),
         status: "running",
-      });
+      };
+      mocks.mockSessionCreate.mockResolvedValue(mockSession);
       mocks.mockSessionRemove.mockRejectedValue(new Error("Session removal failed"));
       mocks.mockListTasks.mockResolvedValue([
         { id: "task-fail-remove", frontmatter: { title: "Test" }, description: "", status: "open" },
@@ -656,14 +702,15 @@ describe("AgentOrchestrator", () => {
       mocks.mockUnassignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
       mocks.mockWorktreeRemove.mockResolvedValue(true);
-      mocks.mockSessionCreate.mockResolvedValue({
+      const mockSession = {
         sessionId: "session-stop-all",
         taskId: "task-stop-all",
         workingDirectory: "/test/worktrees/task-stop-all",
         client: {},
         createdAt: new Date(),
         status: "running",
-      });
+      };
+      mocks.mockSessionCreate.mockResolvedValue(mockSession);
       mocks.mockSessionStopAll.mockResolvedValue(undefined);
       mocks.mockListTasks.mockResolvedValue([
         { id: "task-stop-all", frontmatter: { title: "Test" }, description: "", status: "open" },
@@ -743,14 +790,15 @@ describe("AgentOrchestrator", () => {
       mocks.mockAssignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
       mocks.mockWorktreeRemove.mockResolvedValue(true);
-      mocks.mockSessionCreate.mockResolvedValue({
+      const mockSession = {
         sessionId: "session-msg-fail",
         taskId: "task-msg-fail",
         workingDirectory: "/test/worktrees/task-msg-fail",
         client: {},
         createdAt: new Date(),
         status: "running",
-      });
+      };
+      mocks.mockSessionCreate.mockResolvedValue(mockSession);
       mocks.mockSessionRemove.mockResolvedValue(undefined);
       mocks.mockSendMessage.mockRejectedValue(new Error("Failed to send message"));
       mocks.mockListTasks.mockResolvedValue([
@@ -771,6 +819,88 @@ describe("AgentOrchestrator", () => {
       expect(mocks.mockSessionRemove).toHaveBeenCalledWith("task-msg-fail");
       // Worktree should have been cleaned up
       expect(mocks.mockWorktreeRemove).toHaveBeenCalled();
+    });
+  });
+
+  describe("event handling", () => {
+    it("should handle session.idle events for known sessions", async () => {
+      const mockSession = {
+        sessionId: "session-idle-1",
+        taskId: "task-idle-1",
+        workingDirectory: "/test/worktrees/task-idle-1",
+        client: {},
+        createdAt: new Date(),
+        status: "running" as const,
+      };
+
+      mocks.mockAssignTask.mockResolvedValue(undefined);
+      mocks.mockWorktreeCreate.mockResolvedValue(true);
+      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockListTasks.mockResolvedValue([
+        { id: "task-idle-1", frontmatter: { title: "Test" }, description: "", status: "open" },
+      ]);
+
+      const streamIterator = (async function* () {
+        yield [{ id: "task-idle-1", frontmatter: { title: "Test" }, description: "", status: "open" }];
+      })();
+      mocks.mockListTaskStream.mockReturnValue(streamIterator);
+
+      orchestrator.start();
+      await vi.runAllTimersAsync();
+
+      // Simulate session.idle event
+      const idleEvent = {
+        directory: "/test/worktrees/task-idle-1",
+        payload: {
+          type: "session.idle" as const,
+          properties: {
+            sessionID: "session-idle-1",
+          },
+        },
+      };
+
+      // Should not throw
+      await expect((orchestrator as any).handleEvent(idleEvent)).resolves.toBeUndefined();
+    });
+
+    it("should ignore session.idle events for unknown sessions", async () => {
+      const mockSession = {
+        sessionId: "session-known",
+        taskId: "task-known",
+        workingDirectory: "/test/worktrees/task-known",
+        client: {},
+        createdAt: new Date(),
+        status: "running" as const,
+      };
+
+      mocks.mockAssignTask.mockResolvedValue(undefined);
+      mocks.mockWorktreeCreate.mockResolvedValue(true);
+      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockListTasks.mockResolvedValue([
+        { id: "task-known", frontmatter: { title: "Test" }, description: "", status: "open" },
+      ]);
+
+      const streamIterator = (async function* () {
+        yield [{ id: "task-known", frontmatter: { title: "Test" }, description: "", status: "open" }];
+      })();
+      mocks.mockListTaskStream.mockReturnValue(streamIterator);
+
+      orchestrator.start();
+      await vi.runAllTimersAsync();
+
+      // Simulate idle event for unknown session
+      const idleEvent = {
+        directory: "/test/worktrees/unknown",
+        payload: {
+          type: "session.idle" as const,
+          properties: {
+            sessionID: "session-unknown",
+          },
+        },
+      };
+
+      // Should not throw
+      await expect((orchestrator as any).handleEvent(idleEvent)).resolves.toBeUndefined();
     });
   });
 });

@@ -55,6 +55,15 @@ export class OpencodeSessionManager {
   }
 
   /**
+   * Get the OpenCode client instance.
+   *
+   * @returns The OpenCode client
+   */
+  getClient(): OpencodeClient {
+    return this.client;
+  }
+
+  /**
    * Create a new OpenCode session for an agent.
    *
    * @param taskId - The task ID (used as the session identifier base)
