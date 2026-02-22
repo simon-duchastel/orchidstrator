@@ -18,8 +18,6 @@ const mocks = vi.hoisted(() => {
   const mockSendMessage = vi.fn();
   const mockGetClient = vi.fn();
   const mockGlobalEvent = vi.fn();
-  const mockInvokeReview = vi.fn();
-  const mockShouldReview = vi.fn();
   
   class MockTaskManager {
     listTaskStream = mockListTaskStream;
@@ -37,11 +35,6 @@ const mocks = vi.hoisted(() => {
     recoverSessions = mockRecoverSessions;
     sendMessage = mockSendMessage;
     getClient = mockGetClient;
-  }
-
-  class MockReviewAgent {
-    invokeReview = mockInvokeReview;
-    shouldReview = mockShouldReview;
   }
   
   return {
@@ -61,11 +54,8 @@ const mocks = vi.hoisted(() => {
     mockSendMessage,
     mockGetClient,
     mockGlobalEvent,
-    mockInvokeReview,
-    mockShouldReview,
     MockTaskManager,
     MockSessionManager,
-    MockReviewAgent,
   };
 });
 
@@ -92,15 +82,10 @@ vi.mock("./opencode-session.js", () => ({
   OpencodeSessionManager: mocks.MockSessionManager,
 }));
 
-vi.mock("./review-agent.js", () => ({
-  ReviewAgent: mocks.MockReviewAgent,
-}));
-
 describe("AgentOrchestrator", () => {
   let orchestrator: AgentOrchestrator;
   let mockWorktreeManager: any;
   let mockSessionManager: any;
-  let mockReviewAgent: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -123,15 +108,9 @@ describe("AgentOrchestrator", () => {
       sendMessage: mocks.mockSendMessage,
       getClient: mocks.mockGetClient,
     };
-    mockReviewAgent = {
-      invokeReview: mocks.mockInvokeReview,
-      shouldReview: mocks.mockShouldReview,
-    };
     mocks.mockRecoverSessions.mockResolvedValue([]);
     mocks.mockListTasks.mockResolvedValue([]);
     mocks.mockSendMessage.mockResolvedValue(undefined);
-    mocks.mockInvokeReview.mockResolvedValue(undefined);
-    mocks.mockShouldReview.mockReturnValue(true);
     
     // Setup mock client with global.event
     const mockEventStream = {
@@ -150,7 +129,6 @@ describe("AgentOrchestrator", () => {
       worktreeManager: mockWorktreeManager,
       sessionManager: mockSessionManager,
       opencodeBaseUrl: "http://localhost:4096",
-      reviewAgent: mockReviewAgent,
     });
   });
 
@@ -844,56 +822,48 @@ describe("AgentOrchestrator", () => {
     });
   });
 
-  describe("review agent integration", () => {
-    it("should provide access to review agent instance", () => {
-      const reviewAgent = orchestrator.getReviewAgent();
-      expect(reviewAgent).toBe(mockReviewAgent);
-    });
-
-    it("should invoke review agent when session becomes idle", async () => {
+  describe("event handling", () => {
+    it("should handle session.idle events for known sessions", async () => {
       const mockSession = {
-        sessionId: "session-review-idle",
-        taskId: "task-review-idle",
-        workingDirectory: "/test/worktrees/task-review-idle",
+        sessionId: "session-idle-1",
+        taskId: "task-idle-1",
+        workingDirectory: "/test/worktrees/task-idle-1",
         client: {},
         createdAt: new Date(),
         status: "running" as const,
       };
 
-      // Setup: start an agent
       mocks.mockAssignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
       mocks.mockSessionCreate.mockResolvedValue(mockSession);
       mocks.mockListTasks.mockResolvedValue([
-        { id: "task-review-idle", frontmatter: { title: "Test" }, description: "", status: "open" },
+        { id: "task-idle-1", frontmatter: { title: "Test" }, description: "", status: "open" },
       ]);
 
       const streamIterator = (async function* () {
-        yield [{ id: "task-review-idle", frontmatter: { title: "Test" }, description: "", status: "open" }];
+        yield [{ id: "task-idle-1", frontmatter: { title: "Test" }, description: "", status: "open" }];
       })();
       mocks.mockListTaskStream.mockReturnValue(streamIterator);
 
       orchestrator.start();
       await vi.runAllTimersAsync();
 
-      // Simulate session.idle event by calling handleEvent directly
+      // Simulate session.idle event
       const idleEvent = {
-        directory: "/test/worktrees/task-review-idle",
+        directory: "/test/worktrees/task-idle-1",
         payload: {
           type: "session.idle" as const,
           properties: {
-            sessionID: "session-review-idle",
+            sessionID: "session-idle-1",
           },
         },
       };
 
-      // Access private method through any cast
-      await (orchestrator as any).handleEvent(idleEvent);
-
-      expect(mocks.mockInvokeReview).toHaveBeenCalledWith(mockSession);
+      // Should not throw
+      await expect((orchestrator as any).handleEvent(idleEvent)).resolves.toBeUndefined();
     });
 
-    it("should ignore idle events for unknown sessions", async () => {
+    it("should ignore session.idle events for unknown sessions", async () => {
       const mockSession = {
         sessionId: "session-known",
         taskId: "task-known",
@@ -903,7 +873,6 @@ describe("AgentOrchestrator", () => {
         status: "running" as const,
       };
 
-      // Setup: start an agent
       mocks.mockAssignTask.mockResolvedValue(undefined);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
       mocks.mockSessionCreate.mockResolvedValue(mockSession);
@@ -919,7 +888,7 @@ describe("AgentOrchestrator", () => {
       orchestrator.start();
       await vi.runAllTimersAsync();
 
-      // Simulate session.idle event for unknown session
+      // Simulate idle event for unknown session
       const idleEvent = {
         directory: "/test/worktrees/unknown",
         payload: {
@@ -930,80 +899,8 @@ describe("AgentOrchestrator", () => {
         },
       };
 
-      // Access private method through any cast
-      await (orchestrator as any).handleEvent(idleEvent);
-
-      // Should not invoke review for unknown sessions
-      expect(mocks.mockInvokeReview).not.toHaveBeenCalled();
-    });
-
-    it("should handle session.idle events for multiple agents", async () => {
-      const mockSession1 = {
-        sessionId: "session-multi-1",
-        taskId: "task-multi-1",
-        workingDirectory: "/test/worktrees/task-multi-1",
-        client: {},
-        createdAt: new Date(),
-        status: "running" as const,
-      };
-
-      const mockSession2 = {
-        sessionId: "session-multi-2",
-        taskId: "task-multi-2",
-        workingDirectory: "/test/worktrees/task-multi-2",
-        client: {},
-        createdAt: new Date(),
-        status: "running" as const,
-      };
-
-      mocks.mockAssignTask.mockResolvedValue(undefined);
-      mocks.mockWorktreeCreate.mockResolvedValue(true);
-      mocks.mockSessionCreate
-        .mockResolvedValueOnce(mockSession1)
-        .mockResolvedValueOnce(mockSession2);
-      mocks.mockListTasks.mockResolvedValue([
-        { id: "task-multi-1", frontmatter: { title: "Test 1" }, description: "", status: "open" },
-        { id: "task-multi-2", frontmatter: { title: "Test 2" }, description: "", status: "open" },
-      ]);
-
-      const streamIterator = (async function* () {
-        yield [
-          { id: "task-multi-1", frontmatter: { title: "Test 1" }, description: "", status: "open" },
-          { id: "task-multi-2", frontmatter: { title: "Test 2" }, description: "", status: "open" },
-        ];
-      })();
-      mocks.mockListTaskStream.mockReturnValue(streamIterator);
-
-      orchestrator.start();
-      await vi.runAllTimersAsync();
-
-      // Simulate idle event for first session
-      const idleEvent1 = {
-        directory: "/test/worktrees/task-multi-1",
-        payload: {
-          type: "session.idle" as const,
-          properties: {
-            sessionID: "session-multi-1",
-          },
-        },
-      };
-
-      await (orchestrator as any).handleEvent(idleEvent1);
-      expect(mocks.mockInvokeReview).toHaveBeenCalledWith(mockSession1);
-
-      // Simulate idle event for second session
-      const idleEvent2 = {
-        directory: "/test/worktrees/task-multi-2",
-        payload: {
-          type: "session.idle" as const,
-          properties: {
-            sessionID: "session-multi-2",
-          },
-        },
-      };
-
-      await (orchestrator as any).handleEvent(idleEvent2);
-      expect(mocks.mockInvokeReview).toHaveBeenCalledWith(mockSession2);
+      // Should not throw
+      await expect((orchestrator as any).handleEvent(idleEvent)).resolves.toBeUndefined();
     });
   });
 });

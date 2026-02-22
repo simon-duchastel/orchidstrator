@@ -17,7 +17,6 @@ import {
 } from "./opencode-session.js";
 import { fillAgentPromptTemplate } from "./templates.js";
 import { log } from "./utils/logger.js";
-import { ReviewAgent } from "./review-agent.js";
 import type { GlobalEvent, EventSessionIdle } from "@opencode-ai/sdk";
 
 export interface AgentInfo {
@@ -34,7 +33,6 @@ export interface AgentOrchestratorOptions {
   worktreeManager?: WorktreeManager;
   sessionManager?: OpencodeSessionManager;
   opencodeBaseUrl: string;
-  reviewAgent?: ReviewAgent;
 }
 
 export class AgentOrchestrator {
@@ -44,7 +42,6 @@ export class AgentOrchestrator {
   private worktreeManager: WorktreeManager;
   private sessionManager: OpencodeSessionManager;
   private cwdProvider: () => string;
-  private reviewAgent: ReviewAgent;
   private eventStreamAbortController: AbortController | null = null;
 
   constructor(options: AgentOrchestratorOptions) {
@@ -58,9 +55,6 @@ export class AgentOrchestrator {
       sessionsDir: worktreesDir,
       baseUrl: options.opencodeBaseUrl,
     });
-
-    // Initialize review agent
-    this.reviewAgent = options.reviewAgent ?? new ReviewAgent();
   }
 
   async start(): Promise<void> {
@@ -130,7 +124,7 @@ export class AgentOrchestrator {
 
   /**
    * Handle an OpenCode event.
-   * Currently only handles session.idle events to trigger review.
+   * Currently only handles session.idle events.
    *
    * @param event - The event from OpenCode
    */
@@ -149,8 +143,12 @@ export class AgentOrchestrator {
       // Find the agent running this session
       const agent = this.findAgentBySessionId(sessionId);
       if (agent && agent.session) {
-        log.log(`[orchestrator] Triggering review for task ${agent.taskId}`);
-        await this.reviewAgent.invokeReview(agent.session);
+        log.log(`[orchestrator] Task ${agent.taskId} completed (session idle)`);
+        
+        // TODO: Invoke review agent here
+        // When ReviewAgent is implemented, call:
+        // await reviewAgent.invokeReview(agent.session);
+        log.log(`[orchestrator] TODO: Invoke review agent for task ${agent.taskId}`);
       }
     }
   }
@@ -345,9 +343,5 @@ export class AgentOrchestrator {
 
   isRunning(): boolean {
     return this.abortController !== null;
-  }
-
-  getReviewAgent(): ReviewAgent {
-    return this.reviewAgent;
   }
 }
