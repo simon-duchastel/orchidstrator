@@ -6,14 +6,14 @@ import {
   type OpencodeServerConfig,
   type OpencodeServerInfo,
 } from "./opencode-server";
-import { findAvailablePort } from "./utils/networking";
+import { findAvailablePort } from "./core/networking/index.js";
 
 // Mock dependencies
 vi.mock("@opencode-ai/sdk", () => ({
   createOpencode: vi.fn(),
 }));
 
-vi.mock("./utils/networking", () => ({
+vi.mock("./core/networking/index.js", () => ({
   findAvailablePort: vi.fn(),
 }));
 

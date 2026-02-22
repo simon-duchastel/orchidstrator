@@ -8,7 +8,7 @@
 import { createOpencodeClient, type OpencodeClient, type Session } from "@opencode-ai/sdk";
 import { join } from "node:path";
 import { mkdirSync, existsSync } from "node:fs";
-import { log } from "./utils/logger.js";
+import { log } from "./core/logging/index.js";
 
 export interface AgentSession {
   /** Unique session identifier (from OpenCode) */
