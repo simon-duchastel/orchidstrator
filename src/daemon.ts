@@ -9,7 +9,7 @@ import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { getPidFile, getDirectoryPort, getOrchidDir, getMainRepoDir } from "./paths.js";
 import { createOpencodeServer, type OpencodeServerInstance } from "./opencode-server.js";
 import { AgentOrchestrator } from "./agent-orchestrator.js";
-import { log } from "./utils/logger.js";
+import { log } from "./core/logging/index.js";
 
 let serverInstance: OpencodeServerInstance | null = null;
 let orchestrator: AgentOrchestrator | null = null;

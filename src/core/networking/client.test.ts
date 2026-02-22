@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createServer, type Server } from "node:net";
-import { isPortAvailable, findAvailablePort } from "./networking";
+import { isPortAvailable, findAvailablePort } from "./client";
 
 // Mock the net module
 vi.mock("node:net", () => ({

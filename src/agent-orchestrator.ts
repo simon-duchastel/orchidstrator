@@ -16,7 +16,7 @@ import {
   type AgentSession,
 } from "./opencode-session.js";
 import { fillAgentPromptTemplate } from "./templates/index.js";
-import { log } from "./utils/logger.js";
+import { log } from "./core/logging/index.js";
 import type { GlobalEvent, EventSessionIdle } from "@opencode-ai/sdk";
 
 export interface AgentInfo {

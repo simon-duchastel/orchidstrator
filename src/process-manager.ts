@@ -18,8 +18,8 @@ import {
   getMainRepoDir,
 } from "./paths";
 import { validateOrchidStructure } from "./commands";
-import { findAvailablePort } from "./utils/networking";
-import { generateServerCredentials } from "./utils/credentials";
+import { findAvailablePort } from "./core/networking/index.js";
+import { generateServerCredentials } from "./core/credentials/index.js";
 
 /**
  * Check if a process with the given PID is running

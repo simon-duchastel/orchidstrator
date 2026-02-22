@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { log, setVerboseLogging, createLogger } from './utils/logger.js';
+import { log, setVerboseLogging, createLogger } from './core/logging/index.js';
 
 describe('CLI verbose flag', () => {
   const mockConsoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});

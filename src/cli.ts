@@ -6,7 +6,7 @@ import { upCommand } from "./cli/commands/up";
 import { downCommand } from "./cli/commands/down";
 import { statusCommand } from "./cli/commands/status";
 import { dashboardCommand } from "./cli/commands/dashboard";
-import { setVerboseLogging } from "./utils/logger.js";
+import { setVerboseLogging } from "./core/logging/index.js";
 
 await new Command()
   .help(flatHelp())
