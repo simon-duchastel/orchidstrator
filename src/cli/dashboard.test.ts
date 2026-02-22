@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { dashboardAction } from './dashboard';
+import { dashboardAction } from './dashboard.js';
 
 const { mockGetStatus, mockOpen } = vi.hoisted(() => ({
   mockGetStatus: vi.fn(),
   mockOpen: vi.fn(),
 }));
 
-vi.mock("../../process-manager", () => ({
+vi.mock("../process/manager.js", () => ({
   getStatus: mockGetStatus,
 }));
 

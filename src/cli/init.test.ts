@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { initAction } from './init';
+import { initAction } from './init.js';
 
 const { mockInitializeOrchid, mockIsDirectoryEmpty } = vi.hoisted(() => ({
   mockInitializeOrchid: vi.fn(),
@@ -10,7 +10,7 @@ const { mockConfirmPrompt } = vi.hoisted(() => ({
   mockConfirmPrompt: vi.fn(),
 }));
 
-vi.mock("../../commands/init/init", () => ({
+vi.mock("../init/index.js", () => ({
   initializeOrchid: mockInitializeOrchid,
   isDirectoryEmpty: mockIsDirectoryEmpty,
 }));

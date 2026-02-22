@@ -1,6 +1,6 @@
 import { Command } from "@cliffy/command";
 import { Confirm } from "@cliffy/prompt/confirm";
-import { initializeOrchid, isDirectoryEmpty } from "../../commands/init/init";
+import { initializeOrchid, isDirectoryEmpty } from "../init/index.js";
 import { cwd } from "node:process";
 
 export async function initAction(options: { dangerouslyInitInNonEmptyDir?: true }, repository: string) {
