@@ -30,8 +30,6 @@ export interface MergerAgent {
 
 /**
  * MergerAgent handles the merge phase of a task.
- * Created per-task and destroyed when merge is complete.
- * Worktree and session are provided by the orchestrator.
  */
 export class MergerAgentImpl implements MergerAgent {
   readonly agentId: string;
