@@ -9,7 +9,7 @@
 
 import { TaskManager, type Task } from "dyson-swarm";
 import { join } from "node:path";
-import { WorktreeManager } from "./worktrees/index.js";
+import { WorktreeManager } from "./git/worktrees/index.js";
 import { getWorktreesDir } from "./paths.js";
 import {
   OpencodeSessionManager,

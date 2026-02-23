@@ -8,7 +8,7 @@
 import { existsSync, mkdirSync, writeFileSync, rmSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { cwd } from "node:process";
-import { cloneRepository, GitOperations, defaultGitOperations } from "../git-manager.js";
+import { cloneRepository, GitOperations, defaultGitOperations } from "../git/manager.js";
 import {
   getOrchidDir,
   getPidFile,

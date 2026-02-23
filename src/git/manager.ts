@@ -33,7 +33,7 @@ export class ProductionGitOperations implements GitOperations {
     // TODO: Implement basic URL validation
     // For now, just check if it looks like a git URL
     const gitUrlPatterns = [
-      /^https?:\/\/.+\.git$/,
+      /^https?:\/.+\.git$/,
       /^git@.+:.+\.git$/,
       /^https:\/\/github\.com\/[^\/]+\/[^\/]+$/,
       /^https:\/\/gitlab\.com\/[^\/]+\/[^\/]+$/,
