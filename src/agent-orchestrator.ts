@@ -10,11 +10,11 @@
 import { TaskManager, type Task } from "dyson-swarm";
 import { join } from "node:path";
 import { WorktreeManager } from "./git/worktrees/index.js";
-import { getWorktreesDir } from "./paths.js";
+import { getWorktreesDir } from "./config/paths.js";
 import {
   OpencodeSessionManager,
   type AgentSession,
-} from "./opencode-session.js";
+} from "./opencode/session/manager.js";
 import { fillAgentPromptTemplate } from "./templates/index.js";
 import { log } from "./core/logging/index.js";
 import type { GlobalEvent, EventSessionIdle } from "@opencode-ai/sdk";

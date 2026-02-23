@@ -1,5 +1,5 @@
 import { Command } from "@cliffy/command";
-import { startDaemon } from "../process-manager.js";
+import { startDaemon } from "../process/manager.js";
 
 export async function upAction() {
   const result = await startDaemon();

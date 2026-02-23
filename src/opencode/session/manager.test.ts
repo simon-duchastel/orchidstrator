@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { OpencodeSessionManager } from "./opencode-session";
+import { OpencodeSessionManager } from "./manager.js";
 
 const mocks = vi.hoisted(() => {
   const mockSessionCreate = vi.fn();

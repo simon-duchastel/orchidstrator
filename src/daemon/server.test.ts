@@ -5,15 +5,15 @@ import {
   createAuthenticatedUrl,
   type OpencodeServerConfig,
   type OpencodeServerInfo,
-} from "./opencode-server";
-import { findAvailablePort } from "./core/networking/index.js";
+} from "./server.js";
+import { findAvailablePort } from "../core/networking/index.js";
 
 // Mock dependencies
 vi.mock("@opencode-ai/sdk", () => ({
   createOpencode: vi.fn(),
 }));
 
-vi.mock("./core/networking/index.js", () => ({
+vi.mock("../core/networking/index.js", () => ({
   findAvailablePort: vi.fn(),
 }));
 

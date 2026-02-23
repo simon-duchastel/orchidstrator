@@ -6,7 +6,7 @@ const { mockGetStatus, mockOpen } = vi.hoisted(() => ({
   mockOpen: vi.fn(),
 }));
 
-vi.mock("../process-manager.js", () => ({
+vi.mock("../process/manager.js", () => ({
   getStatus: mockGetStatus,
 }));
 

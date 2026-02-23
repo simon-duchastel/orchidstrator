@@ -13,7 +13,7 @@
  */
 
 import { createOpencode } from "@opencode-ai/sdk";
-import { findAvailablePort } from "./core/networking/index.js";
+import { findAvailablePort } from "../core/networking/index.js";
 
 export interface OpencodeServerConfig {
   /** Hostname to bind to (default: 127.0.0.1) */

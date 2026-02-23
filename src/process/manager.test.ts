@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { startDaemon, stopDaemon, getStatus } from './process-manager';
+import { startDaemon, stopDaemon, getStatus } from './manager.js';
 import { spawn } from 'child_process';
 
 // Mock all file system operations
@@ -22,8 +22,28 @@ vi.mock('node:fs', () => ({
 // Import mocked functions
 import { existsSync, readFileSync, mkdirSync, rmSync, writeFileSync, openSync, closeSync, unlinkSync } from 'node:fs';
 
+// Mock orchid-lifecycle module
+vi.mock('../orchid-lifecycle/index.js', () => ({
+  validateOrchidStructure: vi.fn(),
+}));
+
+import { validateOrchidStructure } from '../orchid-lifecycle/index.js';
+
+// Mock networking module
+vi.mock('../core/networking/index.js', () => ({
+  findAvailablePort: vi.fn().mockResolvedValue(5678),
+}));
+
+// Mock credentials module
+vi.mock('../core/credentials/index.js', () => ({
+  generateServerCredentials: vi.fn().mockReturnValue({
+    username: 'test-user',
+    password: 'test-pass',
+  }),
+}));
+
 // Mock paths module to control directory locations for testing
-vi.mock('./paths', () => ({
+vi.mock('../config/paths.js', () => ({
   getOrchidDir: () => '/tmp/test-orchid-daemon/.orchid',
   getPidFile: () => '/tmp/test-orchid-daemon/.orchid/orchid.pid',
   getLogFile: () => '/tmp/test-orchid-daemon/.orchid/orchid.log',
@@ -33,12 +53,6 @@ vi.mock('./paths', () => ({
   getDirectoryPort: () => 5678,
 }));
 
-// Mock orchid-lifecycle module's validateOrchidStructure function
-vi.mock('./orchid-lifecycle/index.js', () => ({
-  validateOrchidStructure: vi.fn(),
-}));
-
-import { validateOrchidStructure } from './orchid-lifecycle/index.js';
 
 describe('process-manager.ts - Updated Logic', () => {
   beforeEach(() => {

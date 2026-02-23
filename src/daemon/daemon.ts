@@ -6,10 +6,10 @@
  */
 
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { getPidFile, getDirectoryPort, getOrchidDir, getMainRepoDir } from "./paths.js";
-import { createOpencodeServer, type OpencodeServerInstance } from "./opencode-server.js";
-import { AgentOrchestrator } from "./agent-orchestrator.js";
-import { log } from "./core/logging/index.js";
+import { getPidFile, getDirectoryPort, getOrchidDir, getMainRepoDir } from "../config/paths.js";
+import { createOpencodeServer, type OpencodeServerInstance } from "./server.js";
+import { AgentOrchestrator } from "../agent-orchestrator.js";
+import { log } from "../core/logging/logger.js";
 
 let serverInstance: OpencodeServerInstance | null = null;
 let orchestrator: AgentOrchestrator | null = null;

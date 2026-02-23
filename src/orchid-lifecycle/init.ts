@@ -14,7 +14,7 @@ import {
   getPidFile,
   getMainRepoDir,
   getWorktreesDir,
-} from "../paths.js";
+} from "../config/paths.js";
 import { isInitialized as isDysonSwarmInitialized, initialize as initializeDysonSwarm } from "dyson-swarm";
 
 /**

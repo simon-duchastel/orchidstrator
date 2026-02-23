@@ -16,10 +16,10 @@ import {
   getDirectoryPort,
   getOrchidDir,
   getMainRepoDir,
-} from "./paths";
-import { validateOrchidStructure } from "./orchid-lifecycle/index.js";
-import { findAvailablePort } from "./core/networking/index.js";
-import { generateServerCredentials } from "./core/credentials/index.js";
+} from "../config/paths.js";
+import { validateOrchidStructure } from "../orchid-lifecycle/index.js";
+import { findAvailablePort } from "../core/networking/index.js";
+import { generateServerCredentials } from "../core/credentials/index.js";
 
 /**
  * Check if a process with the given PID is running

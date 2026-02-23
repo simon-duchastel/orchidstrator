@@ -1,5 +1,5 @@
 import { Command } from "@cliffy/command";
-import { getStatus } from "../process-manager.js";
+import { getStatus } from "../process/manager.js";
 
 export function statusAction() {
   const status = getStatus();

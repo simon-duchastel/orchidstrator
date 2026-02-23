@@ -1,6 +1,6 @@
 import { Command } from "@cliffy/command";
 import open from "open";
-import { getStatus } from "../process-manager.js";
+import { getStatus } from "../process/manager.js";
 
 export async function dashboardAction() {
   const status = getStatus();

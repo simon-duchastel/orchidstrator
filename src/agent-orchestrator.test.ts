@@ -63,7 +63,7 @@ vi.mock("dyson-swarm", () => ({
   TaskManager: mocks.MockTaskManager,
 }));
 
-vi.mock("./worktrees/index.js", () => ({
+vi.mock("./git/worktrees/index.js", () => ({
   WorktreeManager: class MockWorktreeManager {
     create = vi.fn();
     remove = vi.fn();
@@ -74,11 +74,11 @@ vi.mock("./worktrees/index.js", () => ({
   },
 }));
 
-vi.mock("./paths.js", () => ({
+vi.mock("./config/paths.js", () => ({
   getWorktreesDir: (cwdProvider?: () => string) => "/test/worktrees",
 }));
 
-vi.mock("./opencode-session.js", () => ({
+vi.mock("./opencode/session/manager.js", () => ({
   OpencodeSessionManager: mocks.MockSessionManager,
 }));
 
