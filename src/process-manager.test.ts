@@ -33,12 +33,12 @@ vi.mock('./paths', () => ({
   getDirectoryPort: () => 5678,
 }));
 
-// Mock commands module's validateOrchidStructure function
-vi.mock('../src/commands', () => ({
+// Mock orchid-lifecycle module's validateOrchidStructure function
+vi.mock('./orchid-lifecycle/index.js', () => ({
   validateOrchidStructure: vi.fn(),
 }));
 
-import { validateOrchidStructure } from '../src/commands';
+import { validateOrchidStructure } from './orchid-lifecycle/index.js';
 
 describe('process-manager.ts - Updated Logic', () => {
   beforeEach(() => {

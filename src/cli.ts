@@ -1,11 +1,11 @@
 import { Command } from "@cliffy/command";
 import { flatHelp } from "cliffy-flat-help";
 
-import { initCommand } from "./cli/commands/init";
-import { upCommand } from "./cli/commands/up";
-import { downCommand } from "./cli/commands/down";
-import { statusCommand } from "./cli/commands/status";
-import { dashboardCommand } from "./cli/commands/dashboard";
+import { initCommand } from "./cli/init.js";
+import { upCommand } from "./cli/up.js";
+import { downCommand } from "./cli/down.js";
+import { statusCommand } from "./cli/status.js";
+import { dashboardCommand } from "./cli/dashboard.js";
 import { setVerboseLogging } from "./core/logging/index.js";
 
 await new Command()

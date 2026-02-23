@@ -17,7 +17,7 @@ import {
   getOrchidDir,
   getMainRepoDir,
 } from "./paths";
-import { validateOrchidStructure } from "./commands";
+import { validateOrchidStructure } from "./orchid-lifecycle/index.js";
 import { findAvailablePort } from "./core/networking/index.js";
 import { generateServerCredentials } from "./core/credentials/index.js";
 

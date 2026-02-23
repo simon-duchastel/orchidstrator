@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { statusAction } from './status';
+import { statusAction } from './status.js';
 
 const { mockGetStatus } = vi.hoisted(() => ({
   mockGetStatus: vi.fn(),
 }));
 
-vi.mock("../../process-manager", () => ({
+vi.mock("../process-manager.js", () => ({
   getStatus: mockGetStatus,
 }));
 

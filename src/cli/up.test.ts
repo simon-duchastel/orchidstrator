@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { upAction } from './up';
+import { upAction } from './up.js';
 
 const { mockStartDaemon } = vi.hoisted(() => ({
   mockStartDaemon: vi.fn(),
 }));
 
-vi.mock("../../process-manager", () => ({
+vi.mock("../process-manager.js", () => ({
   startDaemon: mockStartDaemon,
 }));
 

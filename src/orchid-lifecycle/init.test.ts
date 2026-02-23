@@ -11,7 +11,7 @@ import {
   initializeOrchid,
   isDirectoryEmpty
 } from './init';
-import { MockGitOperations } from '../../git-manager';
+import { MockGitOperations } from '../git-manager.js';
 
 // Mock all file system operations
 vi.mock('node:fs', () => ({
@@ -39,7 +39,7 @@ import { existsSync, readFileSync, mkdirSync, rmSync, writeFileSync, unlinkSync,
 import { execSync } from 'child_process';
 
 // Mock: paths module to control directory locations for testing
-vi.mock('../../paths', () => ({
+vi.mock('../paths', () => ({
   getOrchidDir: () => '/tmp/test-orchid/.orchid',
   getPidFile: () => '/tmp/test-orchid/.orchid/orchid.pid',
   getMainRepoDir: () => '/tmp/test-orchid/.orchid/main',
