@@ -16,6 +16,8 @@ import { getWorktreesDir } from "../../config/paths.js";
 import { OpencodeSessionManager, type AgentSession } from "../session/index.js";
 import { Task, TaskState, createTaskFromDyson } from "../../tasks/index.js";
 import { createImplementorAgent, type ImplementorAgent } from "../agents/implementor/index.js";
+import { createReviewerAgent, type ReviewerAgent } from "../agents/reviewer/index.js";
+import { createMergerAgent, type MergerAgent } from "../agents/merger/index.js";
 import { log } from "../../core/logging/index.js";
 import type { GlobalEvent, EventSessionIdle } from "@opencode-ai/sdk";
 
@@ -39,6 +41,8 @@ export class AgentOrchestrator {
   private taskManager: TaskManager;
   private tasks: Map<string, Task> = new Map();
   private implementors: Map<string, ImplementorAgent> = new Map();
+  private reviewers: Map<string, ReviewerAgent> = new Map();
+  private mergers: Map<string, MergerAgent> = new Map();
   private abortController: AbortController | null = null;
   private worktreeManager: WorktreeManager;
   private sessionManager: OpencodeSessionManager;
@@ -136,11 +140,31 @@ export class AgentOrchestrator {
       
       log.log(`[orchestrator] Session ${sessionId} became idle`);
       
-      // Find task by session ID
+      // Find task by session ID and route to appropriate handler based on task state
       const task = this.findTaskBySessionId(sessionId);
       if (task) {
-        await this.handleImplementationComplete(task.taskId);
+        await this.handleSessionIdleForTask(task);
       }
+    }
+  }
+
+  /**
+   * Handle session idle for a task based on its current state.
+   * Routes to the appropriate completion handler.
+   */
+  private async handleSessionIdleForTask(task: Task): Promise<void> {
+    switch (task.state) {
+      case TaskState.IMPLEMENTING:
+        await this.handleImplementationComplete(task.taskId);
+        break;
+      case TaskState.REVIEWING:
+        await this.handleReviewComplete(task.taskId);
+        break;
+      case TaskState.MERGING:
+        await this.handleMergeComplete(task.taskId);
+        break;
+      default:
+        log.log(`[orchestrator] Session idle for task ${task.taskId} in state ${task.state}, no action needed`);
     }
   }
 
@@ -159,6 +183,7 @@ export class AgentOrchestrator {
   /**
    * Handle implementation completion.
    * Called when an implementor agent finishes.
+   * Creates a reviewer agent for the task.
    */
   private async handleImplementationComplete(taskId: string): Promise<void> {
     const task = this.tasks.get(taskId);
@@ -181,10 +206,80 @@ export class AgentOrchestrator {
       task.markImplementationComplete();
       log.log(`[orchestrator] Task ${taskId} moved to AWAITING_REVIEW state`);
       
-      // TODO: Create reviewer agent
-      log.log(`[orchestrator] TODO: Create reviewer agent for task ${taskId}`);
+      // Create reviewer agent
+      await this.createReviewer(task);
     } catch (error) {
       log.error(`[orchestrator] Failed to transition task ${taskId}:`, error);
+    }
+  }
+
+  /**
+   * Handle review completion.
+   * Called when a reviewer agent finishes.
+   * Creates a merger agent for the task.
+   */
+  private async handleReviewComplete(taskId: string): Promise<void> {
+    const task = this.tasks.get(taskId);
+    if (!task) {
+      log.error(`[orchestrator] Task ${taskId} not found for review completion`);
+      return;
+    }
+
+    log.log(`[orchestrator] Task ${taskId} review complete`);
+
+    // Remove the reviewer agent
+    const reviewer = this.reviewers.get(taskId);
+    if (reviewer) {
+      await reviewer.stop();
+      this.reviewers.delete(taskId);
+    }
+
+    // Transition task state
+    try {
+      task.markReviewComplete();
+      log.log(`[orchestrator] Task ${taskId} moved to AWAITING_MERGE state`);
+      
+      // Create merger agent
+      await this.createMerger(task);
+    } catch (error) {
+      log.error(`[orchestrator] Failed to transition task ${taskId} after review:`, error);
+    }
+  }
+
+  /**
+   * Handle merge completion.
+   * Called when a merger agent finishes.
+   * Cleans up resources and marks task as complete.
+   */
+  private async handleMergeComplete(taskId: string): Promise<void> {
+    const task = this.tasks.get(taskId);
+    if (!task) {
+      log.error(`[orchestrator] Task ${taskId} not found for merge completion`);
+      return;
+    }
+
+    log.log(`[orchestrator] Task ${taskId} merge complete`);
+
+    // Remove the merger agent
+    const merger = this.mergers.get(taskId);
+    if (merger) {
+      await merger.stop();
+      this.mergers.delete(taskId);
+    }
+
+    // Transition task state
+    try {
+      task.markMergeComplete();
+      log.log(`[orchestrator] Task ${taskId} moved to COMPLETED state`);
+      
+      // Clean up resources
+      await this.cleanupTaskResources(taskId);
+      
+      // Remove task from tracking
+      this.tasks.delete(taskId);
+      log.log(`[orchestrator] Task ${taskId} completed and cleaned up`);
+    } catch (error) {
+      log.error(`[orchestrator] Failed to transition task ${taskId} after merge:`, error);
     }
   }
 
@@ -270,6 +365,30 @@ export class AgentOrchestrator {
     }
     this.implementors.clear();
 
+    // Stop all reviewer agents
+    log.log("[orchestrator] Stopping all reviewer agents...");
+    for (const [taskId, reviewer] of this.reviewers) {
+      try {
+        await reviewer.stop();
+        log.log(`[orchestrator] Stopped reviewer for task ${taskId}`);
+      } catch (error) {
+        log.error(`[orchestrator] Error stopping reviewer for task ${taskId}:`, error);
+      }
+    }
+    this.reviewers.clear();
+
+    // Stop all merger agents
+    log.log("[orchestrator] Stopping all merger agents...");
+    for (const [taskId, merger] of this.mergers) {
+      try {
+        await merger.stop();
+        log.log(`[orchestrator] Stopped merger for task ${taskId}`);
+      } catch (error) {
+        log.error(`[orchestrator] Error stopping merger for task ${taskId}:`, error);
+      }
+    }
+    this.mergers.clear();
+
     // Clear tasks
     this.tasks.clear();
     
@@ -313,6 +432,20 @@ export class AgentOrchestrator {
           this.implementors.delete(taskId);
         }
         
+        // Stop reviewer if running
+        const reviewer = this.reviewers.get(taskId);
+        if (reviewer) {
+          await reviewer.stop();
+          this.reviewers.delete(taskId);
+        }
+        
+        // Stop merger if running
+        const merger = this.mergers.get(taskId);
+        if (merger) {
+          await merger.stop();
+          this.mergers.delete(taskId);
+        }
+        
         // Clean up session and worktree
         await this.cleanupTaskResources(taskId);
         
@@ -335,10 +468,15 @@ export class AgentOrchestrator {
         await this.createImplementor(task);
       }
 
-      // TODO: Check if task needs a reviewer
-      // if (task.canAssignReviewer() && !this.reviewers.has(task.taskId)) {
-      //   await this.createReviewer(task);
-      // }
+      // Check if task needs a reviewer
+      if (task.canAssignReviewer() && !this.reviewers.has(task.taskId)) {
+        await this.createReviewer(task);
+      }
+
+      // Check if task needs a merger
+      if (task.canAssignMerger() && !this.mergers.has(task.taskId)) {
+        await this.createMerger(task);
+      }
     }
   }
 
@@ -394,21 +532,213 @@ export class AgentOrchestrator {
   }
 
   /**
+   * Create a reviewer agent for a task.
+   * Uses existing worktree and session from the implementor.
+   */
+  private async createReviewer(task: Task): Promise<void> {
+    const agentId = `${task.taskId}-reviewer`;
+    log.log(`[orchestrator] Creating reviewer ${agentId} for task ${task.taskId}`);
+
+    try {
+      // Transition task state
+      task.assignReviewer(agentId);
+
+      // Get existing worktree and session from the task
+      const worktreePath = task.worktreePath;
+      
+      if (!worktreePath) {
+        throw new Error(`Task ${task.taskId} missing worktree for review`);
+      }
+
+      // Get the existing session using taskId (sessionManager uses taskId as key)
+      const session = await this.sessionManager.getSession(task.taskId);
+      if (!session) {
+        throw new Error(`Session not found for task ${task.taskId}`);
+      }
+
+      log.log(`[orchestrator] Using existing worktree at ${worktreePath} and session ${session.sessionId}`);
+
+      // Create reviewer agent
+      const reviewer = createReviewerAgent({
+        taskId: task.taskId,
+        dysonTask: task.dysonTask,
+        worktreePath: worktreePath,
+        session: session,
+        sessionManager: this.sessionManager,
+        onComplete: (taskId: string, _session: AgentSession) => {
+          // This will be called via session idle event
+          log.log(`[orchestrator] Reviewer ${agentId} completed for task ${taskId}`);
+        },
+        onError: (taskId: string, error: Error) => {
+          this.handleReviewError(taskId, error);
+        },
+      });
+
+      this.reviewers.set(task.taskId, reviewer);
+
+      // Start the reviewer
+      await reviewer.start();
+
+      log.log(`[orchestrator] Reviewer ${agentId} started for task ${task.taskId}`);
+    } catch (error) {
+      log.error(`[orchestrator] Failed to create reviewer for task ${task.taskId}:`, error);
+      await this.handleReviewError(task.taskId, error instanceof Error ? error : new Error(String(error)));
+    }
+  }
+
+  /**
+   * Create a merger agent for a task.
+   * Uses existing worktree and session.
+   */
+  private async createMerger(task: Task): Promise<void> {
+    const agentId = `${task.taskId}-merger`;
+    log.log(`[orchestrator] Creating merger ${agentId} for task ${task.taskId}`);
+
+    try {
+      // Transition task state
+      task.assignMerger(agentId);
+
+      // Get existing worktree and session from the task
+      const worktreePath = task.worktreePath;
+      
+      if (!worktreePath) {
+        throw new Error(`Task ${task.taskId} missing worktree for merge`);
+      }
+
+      // Get the existing session using taskId (sessionManager uses taskId as key)
+      const session = await this.sessionManager.getSession(task.taskId);
+      if (!session) {
+        throw new Error(`Session not found for task ${task.taskId}`);
+      }
+
+      log.log(`[orchestrator] Using existing worktree at ${worktreePath} and session ${session.sessionId}`);
+
+      // Create merger agent
+      const merger = createMergerAgent({
+        taskId: task.taskId,
+        worktreePath: worktreePath,
+        session: session,
+        sessionManager: this.sessionManager,
+        onComplete: (taskId: string, _session: AgentSession) => {
+          // This will be called via session idle event
+          log.log(`[orchestrator] Merger ${agentId} completed for task ${taskId}`);
+        },
+        onError: (taskId: string, error: Error) => {
+          this.handleMergeError(taskId, error);
+        },
+      });
+
+      this.mergers.set(task.taskId, merger);
+
+      // Start the merger
+      await merger.start();
+
+      log.log(`[orchestrator] Merger ${agentId} started for task ${task.taskId}`);
+    } catch (error) {
+      log.error(`[orchestrator] Failed to create merger for task ${task.taskId}:`, error);
+      await this.handleMergeError(task.taskId, error instanceof Error ? error : new Error(String(error)));
+    }
+  }
+
+  /**
+   * Handle review error.
+   * Called when a reviewer agent fails.
+   */
+  private async handleReviewError(taskId: string, error: Error): Promise<void> {
+    const task = this.tasks.get(taskId);
+    if (!task) {
+      log.error(`[orchestrator] Task ${taskId} not found for review error handling`);
+      return;
+    }
+
+    log.error(`[orchestrator] Task ${taskId} review failed:`, error);
+
+    // Remove the reviewer agent
+    const reviewer = this.reviewers.get(taskId);
+    if (reviewer) {
+      this.reviewers.delete(taskId);
+    }
+
+    // Clean up session and worktree
+    await this.cleanupTaskResources(taskId);
+
+    // Mark task as failed
+    try {
+      task.markFailed();
+      log.log(`[orchestrator] Task ${taskId} moved to FAILED state`);
+    } catch (err) {
+      log.error(`[orchestrator] Failed to mark task ${taskId} as failed:`, err);
+    }
+  }
+
+  /**
+   * Handle merge error.
+   * Called when a merger agent fails.
+   */
+  private async handleMergeError(taskId: string, error: Error): Promise<void> {
+    const task = this.tasks.get(taskId);
+    if (!task) {
+      log.error(`[orchestrator] Task ${taskId} not found for merge error handling`);
+      return;
+    }
+
+    log.error(`[orchestrator] Task ${taskId} merge failed:`, error);
+
+    // Remove the merger agent
+    const merger = this.mergers.get(taskId);
+    if (merger) {
+      this.mergers.delete(taskId);
+    }
+
+    // Clean up session and worktree
+    await this.cleanupTaskResources(taskId);
+
+    // Mark task as failed
+    try {
+      task.markFailed();
+      log.log(`[orchestrator] Task ${taskId} moved to FAILED state`);
+    } catch (err) {
+      log.error(`[orchestrator] Failed to mark task ${taskId} as failed:`, err);
+    }
+  }
+
+  /**
    * Get running agents info.
    */
   getRunningAgents(): AgentInfo[] {
     const agents: AgentInfo[] = [];
     
     for (const task of this.tasks.values()) {
-      const agentId = task.implementorAgentId;
-      if (agentId) {
+      const worktreePath = task.worktreePath || `${this.worktreesDir}/${task.taskId}`;
+      const baseInfo = {
+        taskId: task.taskId,
+        startedAt: task.createdAt,
+        state: task.state,
+        worktreePath,
+        sessionId: task.sessionId,
+      };
+      
+      // Add implementor if present
+      if (task.implementorAgentId) {
         agents.push({
-          taskId: task.taskId,
-          agentId,
-          startedAt: task.createdAt,
-          state: task.state,
-          worktreePath: task.worktreePath || `${this.worktreesDir}/${task.taskId}`,
-          sessionId: task.sessionId,
+          ...baseInfo,
+          agentId: task.implementorAgentId,
+        });
+      }
+      
+      // Add reviewer if present
+      if (task.reviewerAgentId) {
+        agents.push({
+          ...baseInfo,
+          agentId: task.reviewerAgentId,
+        });
+      }
+      
+      // Add merger if present
+      if (task.mergerAgentId) {
+        agents.push({
+          ...baseInfo,
+          agentId: task.mergerAgentId,
         });
       }
     }
