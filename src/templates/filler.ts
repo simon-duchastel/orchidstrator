@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 let agentPromptTemplate: string | undefined;
 let reviewerPromptTemplate: string | undefined;
+let mergerPromptTemplate: string | undefined;
 
 function getAgentPromptTemplate(): string {
   if (!agentPromptTemplate) {
@@ -24,6 +25,16 @@ function getReviewerPromptTemplate(): string {
   return reviewerPromptTemplate;
 }
 
+function getMergerPromptTemplate(): string {
+  if (!mergerPromptTemplate) {
+    mergerPromptTemplate = readFileSync(
+      join(process.cwd(), "templates", "merge-agent-prompt.md"),
+      "utf-8"
+    );
+  }
+  return mergerPromptTemplate;
+}
+
 export interface AgentPromptData {
   taskTitle: string;
   taskDescription: string;
@@ -33,6 +44,11 @@ export interface AgentPromptData {
 export interface ReviewerPromptData {
   taskTitle: string;
   taskDescription: string;
+  worktreePath: string;
+}
+
+export interface MergerPromptData {
+  taskId: string;
   worktreePath: string;
 }
 
@@ -47,5 +63,11 @@ export function fillReviewerPromptTemplate(data: ReviewerPromptData): string {
   return getReviewerPromptTemplate()
     .replace(/\{\{taskTitle\}\}/g, data.taskTitle || "")
     .replace(/\{\{taskDescription\}\}/g, data.taskDescription || "")
+    .replace(/\{\{worktreePath\}\}/g, data.worktreePath);
+}
+
+export function fillMergerPromptTemplate(data: MergerPromptData): string {
+  return getMergerPromptTemplate()
+    .replace(/\{\{taskId\}\}/g, data.taskId || "")
     .replace(/\{\{worktreePath\}\}/g, data.worktreePath);
 }
