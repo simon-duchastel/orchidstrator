@@ -1,15 +1,28 @@
 import { join } from "node:path";
 import { readFileSync } from "node:fs";
 
-const AGENT_PROMPT_TEMPLATE = readFileSync(
-  join(process.cwd(), "templates", "agent-prompt.md"),
-  "utf-8"
-);
+let agentPromptTemplate: string | undefined;
+let reviewerPromptTemplate: string | undefined;
 
-const REVIEWER_PROMPT_TEMPLATE = readFileSync(
-  join(process.cwd(), "templates", "reviewer-prompt.md"),
-  "utf-8"
-);
+function getAgentPromptTemplate(): string {
+  if (!agentPromptTemplate) {
+    agentPromptTemplate = readFileSync(
+      join(process.cwd(), "templates", "agent-prompt.md"),
+      "utf-8"
+    );
+  }
+  return agentPromptTemplate;
+}
+
+function getReviewerPromptTemplate(): string {
+  if (!reviewerPromptTemplate) {
+    reviewerPromptTemplate = readFileSync(
+      join(process.cwd(), "templates", "reviewer-prompt.md"),
+      "utf-8"
+    );
+  }
+  return reviewerPromptTemplate;
+}
 
 export interface AgentPromptData {
   taskTitle: string;
@@ -24,14 +37,14 @@ export interface ReviewerPromptData {
 }
 
 export function fillAgentPromptTemplate(data: AgentPromptData): string {
-  return AGENT_PROMPT_TEMPLATE
+  return getAgentPromptTemplate()
     .replace(/\{\{taskTitle\}\}/g, data.taskTitle || "")
     .replace(/\{\{taskDescription\}\}/g, data.taskDescription || "")
     .replace(/\{\{worktreePath\}\}/g, data.worktreePath);
 }
 
 export function fillReviewerPromptTemplate(data: ReviewerPromptData): string {
-  return REVIEWER_PROMPT_TEMPLATE
+  return getReviewerPromptTemplate()
     .replace(/\{\{taskTitle\}\}/g, data.taskTitle || "")
     .replace(/\{\{taskDescription\}\}/g, data.taskDescription || "")
     .replace(/\{\{worktreePath\}\}/g, data.worktreePath);
