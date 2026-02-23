@@ -45,5 +45,3 @@ Remember: You have full autonomy to implement this task. Make decisions that res
 `);
   });
 });
-
-
