@@ -1,8 +1,11 @@
+<div align="center">
+  
+<h1>Orchid</h1>
+<p>Orchid helps you orchestrate AI agents in the background.</p>
+
+</div>
+
 ![Satellites in space](assets/images/satellites-header.avif)
-
-# Orchid
-
-> **Orchid** helps you orchidstrate (like orchestrate) AI agents in the background.
 
 
 ## Overview
