@@ -13,10 +13,7 @@
     "start": "bun dist/cli.js",
     "test": "vitest --run",
     "test:watch": "vitest --watch",
-    "test:coverage": "vitest --coverage",
-    "test:jest": "NODE_OPTIONS='--experimental-vm-modules' jest",
-    "test:jest:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
-    "test:jest:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage"
+    "test:coverage": "vitest --coverage"
   },
   "repository": {
     "type": "git",
