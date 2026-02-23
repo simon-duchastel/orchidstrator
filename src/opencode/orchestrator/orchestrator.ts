@@ -191,6 +191,7 @@ export class AgentOrchestrator {
   /**
    * Handle implementation error.
    * Called when an implementor agent fails.
+   * Cleans up worktree and session.
    */
   private async handleImplementationError(taskId: string, error: Error): Promise<void> {
     const task = this.tasks.get(taskId);
@@ -207,12 +208,37 @@ export class AgentOrchestrator {
       this.implementors.delete(taskId);
     }
 
+    // Clean up session and worktree
+    await this.cleanupTaskResources(taskId);
+
     // Mark task as failed
     try {
       task.markFailed();
       log.log(`[orchestrator] Task ${taskId} moved to FAILED state`);
     } catch (err) {
       log.error(`[orchestrator] Failed to mark task ${taskId} as failed:`, err);
+    }
+  }
+
+  /**
+   * Clean up resources for a task.
+   */
+  private async cleanupTaskResources(taskId: string): Promise<void> {
+    // Remove session
+    try {
+      await this.sessionManager.removeSession(taskId);
+      log.log(`[orchestrator] Removed session for task ${taskId}`);
+    } catch (error) {
+      log.error(`[orchestrator] Failed to remove session for task ${taskId}:`, error);
+    }
+
+    // Remove worktree
+    const worktreePath = `${this.worktreesDir}/${taskId}`;
+    try {
+      await this.worktreeManager.remove(worktreePath, { force: true });
+      log.log(`[orchestrator] Removed worktree for task ${taskId}`);
+    } catch (error) {
+      log.error(`[orchestrator] Failed to remove worktree for task ${taskId}:`, error);
     }
   }
 
@@ -287,6 +313,9 @@ export class AgentOrchestrator {
           this.implementors.delete(taskId);
         }
         
+        // Clean up session and worktree
+        await this.cleanupTaskResources(taskId);
+        
         this.tasks.delete(taskId);
       }
     }
@@ -315,23 +344,34 @@ export class AgentOrchestrator {
 
   /**
    * Create an implementor agent for a task.
+   * Creates worktree and session first, then assigns the implementor agent.
    */
   private async createImplementor(task: Task): Promise<void> {
     const agentId = `${task.taskId}-implementor`;
     log.log(`[orchestrator] Creating implementor ${agentId} for task ${task.taskId}`);
 
     try {
-      // Transition task state
+      // Transition task state first to mark it as taken
       task.assignImplementor(agentId);
+
+      // Create worktree
+      const worktreePath = `${this.worktreesDir}/${task.taskId}`;
+      await this.worktreeManager.create(worktreePath, "HEAD", { detach: true });
+      log.log(`[orchestrator] Created worktree at ${worktreePath} for task ${task.taskId}`);
+
+      // Create session
+      const session = await this.sessionManager.createSession(task.taskId);
+      log.log(`[orchestrator] Created session ${session.sessionId} for task ${task.taskId}`);
+      task.setSessionId(session.sessionId);
 
       // Create implementor agent
       const implementor = createImplementorAgent({
         taskId: task.taskId,
         dysonTask: task.dysonTask,
-        worktreeManager: this.worktreeManager,
+        worktreePath: worktreePath,
+        session: session,
         sessionManager: this.sessionManager,
         taskManager: this.taskManager,
-        worktreesDir: this.worktreesDir,
         onComplete: (taskId: string, session: AgentSession) => {
           // This will be called via session idle event
           log.log(`[orchestrator] Implementor ${agentId} completed for task ${taskId}`);
@@ -345,12 +385,6 @@ export class AgentOrchestrator {
 
       // Start the implementor
       await implementor.start();
-
-      // Update task with session info if available
-      const impl = implementor as any;
-      if (impl.session?.sessionId) {
-        task.setSessionId(impl.session.sessionId);
-      }
 
       log.log(`[orchestrator] Implementor ${agentId} started for task ${task.taskId}`);
     } catch (error) {

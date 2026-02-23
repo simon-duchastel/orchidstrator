@@ -8,7 +8,7 @@
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { getPidFile, getDirectoryPort, getOrchidDir, getMainRepoDir } from "./config/paths.js";
 import { createOpencodeServer, type OpencodeServerInstance } from "./opencode/server.js";
-import { AgentOrchestrator } from "./agent-orchestrator.js";
+import { AgentOrchestrator } from "./opencode/orchestrator/index.js";
 import { log } from "./core/logging/logger.js";
 
 let serverInstance: OpencodeServerInstance | null = null;
@@ -45,7 +45,7 @@ async function main() {
       opencodeBaseUrl: serverInstance.info.url,
     });
 
-    orchestrator.start().catch((err) => {
+    orchestrator.start().catch((err: Error) => {
       log.error("[orchid] Orchestrator error:", err);
     });
     log.log("[orchid] Agent orchestrator started");
@@ -62,7 +62,7 @@ async function main() {
           await serverInstance.stop();
           log.log("[orchid] OpenCode server closed");
         }
-      } catch (err) {
+      } catch (err: unknown) {
         log.error("[orchid] Error closing server:", err);
       }
       process.exit(0);
@@ -72,7 +72,7 @@ async function main() {
     process.on("SIGINT", () => shutdown("SIGINT"));
 
     log.log("[orchid] Daemon ready");
-  } catch (err) {
+  } catch (err: unknown) {
     log.error("[orchid] Failed to start daemon:", err);
     process.exit(1);
   }
