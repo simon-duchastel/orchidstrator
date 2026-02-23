@@ -1,4 +1,4 @@
-![Satellites in space](assets/images/satellites-header.png)
+![Satellites in space](assets/images/satellites-header.avif)
 
 # Orchid
 
