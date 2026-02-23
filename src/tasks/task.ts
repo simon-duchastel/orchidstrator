@@ -20,6 +20,10 @@ export enum TaskState {
   AWAITING_REVIEW = "awaiting_review",
   /** A reviewer agent is reviewing the implementation */
   REVIEWING = "reviewing",
+  /** Review is complete, waiting for merge */
+  AWAITING_MERGE = "awaiting_merge",
+  /** A merger agent is merging the changes to mainline */
+  MERGING = "merging",
   /** Task is complete */
   COMPLETED = "completed",
   /** Task failed during implementation or review */
@@ -32,6 +36,7 @@ export interface TaskStateData {
   state: TaskState;
   implementorAgentId?: string;
   reviewerAgentId?: string;
+  mergerAgentId?: string;
   worktreePath?: string;
   sessionId?: string;
   createdAt: Date;
@@ -54,6 +59,7 @@ export class Task {
   private _state: TaskState;
   private _implementorAgentId?: string;
   private _reviewerAgentId?: string;
+  private _mergerAgentId?: string;
   private _worktreePath?: string;
   private _sessionId?: string;
   readonly createdAt: Date;
@@ -87,6 +93,13 @@ export class Task {
    */
   get reviewerAgentId(): string | undefined {
     return this._reviewerAgentId;
+  }
+
+  /**
+   * Get merger agent ID
+   */
+  get mergerAgentId(): string | undefined {
+    return this._mergerAgentId;
   }
 
   /**
@@ -192,6 +205,45 @@ export class Task {
       );
     }
 
+    this._state = TaskState.AWAITING_MERGE;
+    this._updateTimestamp();
+  }
+
+  /**
+   * Check if task can be assigned a merger
+   */
+  canAssignMerger(): boolean {
+    return this._state === TaskState.AWAITING_MERGE;
+  }
+
+  /**
+   * Assign a merger to the task
+   * @param mergerAgentId - The ID of the merger agent
+   * @throws Error if transition is invalid
+   */
+  assignMerger(mergerAgentId: string): void {
+    if (!this.canAssignMerger()) {
+      throw new Error(
+        `Cannot assign merger: task is in ${this._state} state, expected AWAITING_MERGE`
+      );
+    }
+
+    this._mergerAgentId = mergerAgentId;
+    this._state = TaskState.MERGING;
+    this._updateTimestamp();
+  }
+
+  /**
+   * Mark merge as complete
+   * @throws Error if transition is invalid
+   */
+  markMergeComplete(): void {
+    if (this._state !== TaskState.MERGING) {
+      throw new Error(
+        `Cannot mark merge complete: task is in ${this._state} state, expected MERGING`
+      );
+    }
+
     this._state = TaskState.COMPLETED;
     this._updateTimestamp();
   }
@@ -235,6 +287,7 @@ export class Task {
       state: this._state,
       implementorAgentId: this._implementorAgentId,
       reviewerAgentId: this._reviewerAgentId,
+      mergerAgentId: this._mergerAgentId,
       worktreePath: this._worktreePath,
       sessionId: this._sessionId,
       createdAt: this.createdAt,

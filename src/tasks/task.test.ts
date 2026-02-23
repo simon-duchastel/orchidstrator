@@ -71,11 +71,30 @@ describe("Task", () => {
       expect(task.isInTerminalState()).toBe(false);
     });
 
+    it("isInTerminalState should return false for AWAITING_MERGE", () => {
+      task.assignImplementor("agent-1");
+      task.markImplementationComplete();
+      task.assignReviewer("reviewer-1");
+      task.markReviewComplete();
+      expect(task.isInTerminalState()).toBe(false);
+    });
+
+    it("isInTerminalState should return false for MERGING", () => {
+      task.assignImplementor("agent-1");
+      task.markImplementationComplete();
+      task.assignReviewer("reviewer-1");
+      task.markReviewComplete();
+      task.assignMerger("merger-1");
+      expect(task.isInTerminalState()).toBe(false);
+    });
+
     it("isInTerminalState should return true for COMPLETED", () => {
       task.assignImplementor("agent-1");
       task.markImplementationComplete();
       task.assignReviewer("reviewer-1");
       task.markReviewComplete();
+      task.assignMerger("merger-1");
+      task.markMergeComplete();
       expect(task.isInTerminalState()).toBe(true);
     });
 
@@ -104,6 +123,21 @@ describe("Task", () => {
       expect(task.canAssignReviewer()).toBe(false);
       task.assignImplementor("agent-1");
       expect(task.canAssignReviewer()).toBe(false);
+    });
+
+    it("canAssignMerger should return true for AWAITING_MERGE", () => {
+      task.assignImplementor("agent-1");
+      task.markImplementationComplete();
+      task.assignReviewer("reviewer-1");
+      task.markReviewComplete();
+      expect(task.canAssignMerger()).toBe(true);
+    });
+
+    it("canAssignMerger should return false for other states", () => {
+      expect(task.canAssignMerger()).toBe(false);
+      task.assignImplementor("agent-1");
+      task.markImplementationComplete();
+      expect(task.canAssignMerger()).toBe(false);
     });
   });
 
@@ -160,17 +194,53 @@ describe("Task", () => {
     });
 
     describe("markReviewComplete", () => {
-      it("should transition from REVIEWING to COMPLETED", () => {
+      it("should transition from REVIEWING to AWAITING_MERGE", () => {
         task.assignImplementor("implementor-1");
         task.markImplementationComplete();
         task.assignReviewer("reviewer-1");
         task.markReviewComplete();
-        expect(task.state).toBe(TaskState.COMPLETED);
+        expect(task.state).toBe(TaskState.AWAITING_MERGE);
       });
 
       it("should throw error when not in REVIEWING state", () => {
         expect(() => task.markReviewComplete()).toThrow(
           "Cannot mark review complete: task is in pending_implementation state"
+        );
+      });
+    });
+
+    describe("assignMerger", () => {
+      it("should transition from AWAITING_MERGE to MERGING", () => {
+        task.assignImplementor("implementor-1");
+        task.markImplementationComplete();
+        task.assignReviewer("reviewer-1");
+        task.markReviewComplete();
+        task.assignMerger("merger-1");
+        expect(task.state).toBe(TaskState.MERGING);
+        expect(task.mergerAgentId).toBe("merger-1");
+      });
+
+      it("should throw error when not in AWAITING_MERGE state", () => {
+        expect(() => task.assignMerger("merger-1")).toThrow(
+          "Cannot assign merger: task is in pending_implementation state"
+        );
+      });
+    });
+
+    describe("markMergeComplete", () => {
+      it("should transition from MERGING to COMPLETED", () => {
+        task.assignImplementor("implementor-1");
+        task.markImplementationComplete();
+        task.assignReviewer("reviewer-1");
+        task.markReviewComplete();
+        task.assignMerger("merger-1");
+        task.markMergeComplete();
+        expect(task.state).toBe(TaskState.COMPLETED);
+      });
+
+      it("should throw error when not in MERGING state", () => {
+        expect(() => task.markMergeComplete()).toThrow(
+          "Cannot mark merge complete: task is in pending_implementation state"
         );
       });
     });
@@ -199,6 +269,8 @@ describe("Task", () => {
         task.markImplementationComplete();
         task.assignReviewer("reviewer-1");
         task.markReviewComplete();
+        task.assignMerger("merger-1");
+        task.markMergeComplete();
         expect(() => task.markFailed()).toThrow(
           "Cannot mark failed: task is already in terminal state completed"
         );
