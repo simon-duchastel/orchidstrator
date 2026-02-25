@@ -314,6 +314,10 @@ export class OpencodeSessionManager implements SessionManagerInterface {
   /**
    * Trigger idle callbacks - called when a session becomes idle.
    * This should be called by the event handler when opencode reports session idle.
+   * TODO: Event stream subscription not implemented. Need to subscribe to opencode
+   * runtime events and call triggerSessionIdle() when session becomes idle.
+   * This denotes that SessionManagerInterface is incomplete - missing event stream
+   * subscription method to wire up to AI runtime events.
    */
   triggerSessionIdle(taskId: string, session: AgentSession): void {
     for (const callback of this.idleCallbacks) {
