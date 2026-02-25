@@ -73,6 +73,19 @@ export interface SessionManagerInterface {
   ): Promise<void>;
 
   /**
+   * Remove a session.
+   *
+   * @param taskId - The task identifier
+   * @throws Error if session doesn't exist
+   */
+  removeSession(taskId: string): Promise<void>;
+
+  /**
+   * Stop all active sessions.
+   */
+  stopAllSessions(): Promise<void>;
+
+  /**
    * Register a callback for session idle events.
    * Called when a session becomes idle (completes its work).
    *
