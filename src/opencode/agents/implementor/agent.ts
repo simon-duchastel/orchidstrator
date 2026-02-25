@@ -8,7 +8,8 @@
  */
 
 import { TaskManager, type Task as DysonTask } from "dyson-swarm";
-import { OpencodeSessionManager, type AgentSession } from "../../../agent-interface/index.js";
+import { type AgentSession } from "../../../agent-interface/types.js";
+import type { SessionManagerInterface } from "../../../agent-interface/index.js";
 import { fillAgentPromptTemplate } from "../../../templates/index.js";
 import { log } from "../../../core/logging/index.js";
 import type { Task } from "../../../tasks/index.js";
@@ -18,7 +19,7 @@ export interface ImplementorAgentOptions {
   dysonTask: DysonTask;
   worktreePath: string;
   session: AgentSession;
-  sessionManager: OpencodeSessionManager;
+  sessionManager: SessionManagerInterface;
   taskManager: TaskManager;
   onComplete: (taskId: string, session: AgentSession) => void;
   onError: (taskId: string, error: Error) => void;
@@ -43,7 +44,7 @@ export class ImplementorAgentImpl implements ImplementorAgent {
   private dysonTask: DysonTask;
   private worktreePath: string;
   private session: AgentSession;
-  private sessionManager: OpencodeSessionManager;
+  private sessionManager: SessionManagerInterface;
   private taskManager: TaskManager;
   private onComplete: (taskId: string, session: AgentSession) => void;
   private onError: (taskId: string, error: Error) => void;
