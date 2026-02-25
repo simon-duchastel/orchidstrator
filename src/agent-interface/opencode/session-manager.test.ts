@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { OpencodeSessionManager } from "./manager.js";
+import { OpencodeSessionManager } from "./session-manager.js";
 
 const mocks = vi.hoisted(() => {
   const mockSessionCreate = vi.fn();
@@ -80,7 +80,10 @@ describe("OpencodeSessionManager", () => {
       };
       mocks.mockSessionCreate.mockResolvedValue(mockResponse);
 
-      const session = await sessionManager.createSession("task-1");
+      const session = await sessionManager.createSession({
+        taskId: "task-1",
+        workingDirectory: "/test/sessions/task-1",
+      });
 
       expect(session.sessionId).toBe("session-123");
       expect(session.taskId).toBe("task-1");
@@ -101,7 +104,10 @@ describe("OpencodeSessionManager", () => {
       };
       mocks.mockSessionCreate.mockResolvedValue(mockResponse);
 
-      await sessionManager.createSession("task-2");
+      await sessionManager.createSession({
+        taskId: "task-2",
+        workingDirectory: "/test/sessions/task-2",
+      });
 
       expect(mocks.mockSessionCreate).toHaveBeenCalledWith({
         query: { directory: "/test/sessions/task-2" },
@@ -117,7 +123,10 @@ describe("OpencodeSessionManager", () => {
       });
 
       await expect(
-        sessionManager.createSession("task-3")
+        sessionManager.createSession({
+          taskId: "task-3",
+          workingDirectory: "/test/sessions/task-3",
+        })
       ).rejects.toThrow("Session for task task-3 already exists");
     });
 
@@ -129,7 +138,10 @@ describe("OpencodeSessionManager", () => {
       });
 
       await expect(
-        sessionManager.createSession("task-4")
+        sessionManager.createSession({
+          taskId: "task-4",
+          workingDirectory: "/test/sessions/task-4",
+        })
       ).rejects.toThrow("Failed to create session");
     });
 
@@ -141,7 +153,10 @@ describe("OpencodeSessionManager", () => {
       });
 
       await expect(
-        sessionManager.createSession("task-5")
+        sessionManager.createSession({
+          taskId: "task-5",
+          workingDirectory: "/test/sessions/task-5",
+        })
       ).rejects.toThrow("Failed to get session ID from create response");
     });
 
@@ -152,7 +167,10 @@ describe("OpencodeSessionManager", () => {
         error: null,
       });
 
-      const session = await sessionManager.createSession("task-6");
+      const session = await sessionManager.createSession({
+        taskId: "task-6",
+        workingDirectory: "/test/sessions/task-6",
+      });
 
       expect(session.sessionId).toBe("nested-session-123");
     });
@@ -164,7 +182,10 @@ describe("OpencodeSessionManager", () => {
         error: null,
       });
 
-      const session = await sessionManager.createSession("task-7");
+      const session = await sessionManager.createSession({
+        taskId: "task-7",
+        workingDirectory: "/test/sessions/task-7",
+      });
 
       expect(session.sessionId).toBe("alt-session-123");
     });
@@ -181,7 +202,10 @@ describe("OpencodeSessionManager", () => {
         error: null,
       });
 
-      await sessionManager.createSession("task-8");
+      await sessionManager.createSession({
+        taskId: "task-8",
+        workingDirectory: "/test/sessions/task-8",
+      });
 
       expect(mocks.mockMkdirSync).toHaveBeenCalledWith(
         "/test/sessions/task-8",
@@ -367,6 +391,73 @@ describe("OpencodeSessionManager", () => {
       await sessionManager.stopAllSessions();
 
       expect(mocks.mockSessionDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("onSessionIdle", () => {
+    it("should register idle callbacks", async () => {
+      const callback = vi.fn();
+      
+      sessionManager.onSessionIdle(callback);
+      
+      // Create a mock session
+      const mockSession = {
+        sessionId: "test-session",
+        taskId: "test-task",
+        workingDirectory: "/test",
+        createdAt: new Date(),
+        status: "running" as const,
+      };
+      
+      // Trigger the idle event
+      sessionManager.triggerSessionIdle("test-task", mockSession);
+      
+      expect(callback).toHaveBeenCalledWith("test-task", mockSession);
+    });
+
+    it("should handle multiple callbacks", async () => {
+      const callback1 = vi.fn();
+      const callback2 = vi.fn();
+      
+      sessionManager.onSessionIdle(callback1);
+      sessionManager.onSessionIdle(callback2);
+      
+      const mockSession = {
+        sessionId: "test-session",
+        taskId: "test-task",
+        workingDirectory: "/test",
+        createdAt: new Date(),
+        status: "running" as const,
+      };
+      
+      sessionManager.triggerSessionIdle("test-task", mockSession);
+      
+      expect(callback1).toHaveBeenCalledWith("test-task", mockSession);
+      expect(callback2).toHaveBeenCalledWith("test-task", mockSession);
+    });
+
+    it("should continue calling callbacks even if one throws", async () => {
+      const callback1 = vi.fn().mockImplementation(() => {
+        throw new Error("Callback error");
+      });
+      const callback2 = vi.fn();
+      
+      sessionManager.onSessionIdle(callback1);
+      sessionManager.onSessionIdle(callback2);
+      
+      const mockSession = {
+        sessionId: "test-session",
+        taskId: "test-task",
+        workingDirectory: "/test",
+        createdAt: new Date(),
+        status: "running" as const,
+      };
+      
+      // Should not throw
+      sessionManager.triggerSessionIdle("test-task", mockSession);
+      
+      expect(callback1).toHaveBeenCalled();
+      expect(callback2).toHaveBeenCalledWith("test-task", mockSession);
     });
   });
 });
