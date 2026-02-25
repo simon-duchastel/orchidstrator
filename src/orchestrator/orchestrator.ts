@@ -250,9 +250,8 @@ export class AgentOrchestrator {
         session: session,
         sessionManager: this.sessionManager,
         taskManager: this.taskManager,
-        onComplete: (taskId: string, session: AgentSession) => {
-          // TODO: This will be called via session idle event when implemented
-          log.log(`[orchestrator] Implementor ${agentId} completed for task ${taskId}`);
+        onComplete: (taskId: string, _session: AgentSession) => {
+          this.handleImplementationComplete(taskId);
         },
         onError: (taskId: string, error: Error) => {
           this.handleImplementationError(taskId, error);
@@ -306,8 +305,7 @@ export class AgentOrchestrator {
         session: session,
         sessionManager: this.sessionManager,
         onComplete: (taskId: string, _session: AgentSession) => {
-          // TODO: This will be called via session idle event when implemented
-          log.log(`[orchestrator] Reviewer ${agentId} completed for task ${taskId}`);
+          this.handleReviewComplete(taskId);
         },
         onError: (taskId: string, error: Error) => {
           this.handleReviewError(taskId, error);
@@ -360,8 +358,7 @@ export class AgentOrchestrator {
         session: session,
         sessionManager: this.sessionManager,
         onComplete: (taskId: string, _session: AgentSession) => {
-          // TODO: This will be called via session idle event when implemented
-          log.log(`[orchestrator] Merger ${agentId} completed for task ${taskId}`);
+          this.handleMergeComplete(taskId);
         },
         onError: (taskId: string, error: Error) => {
           this.handleMergeError(taskId, error);
@@ -377,6 +374,106 @@ export class AgentOrchestrator {
     } catch (error) {
       log.error(`[orchestrator] Failed to create merger for task ${task.taskId}:`, error);
       await this.handleMergeError(task.taskId, error instanceof Error ? error : new Error(String(error)));
+    }
+  }
+
+  /**
+   * Handle implementation completion.
+   * Called when an implementor agent finishes.
+   * Creates a reviewer agent for the task.
+   */
+  private async handleImplementationComplete(taskId: string): Promise<void> {
+    const task = this.tasks.get(taskId);
+    if (!task) {
+      log.error(`[orchestrator] Task ${taskId} not found for completion`);
+      return;
+    }
+
+    log.log(`[orchestrator] Task ${taskId} implementation complete`);
+
+    // Remove the implementor agent
+    const implementor = this.implementors.get(taskId);
+    if (implementor) {
+      await implementor.stop();
+      this.implementors.delete(taskId);
+    }
+
+    // Transition task state
+    try {
+      task.markImplementationComplete();
+      log.log(`[orchestrator] Task ${taskId} moved to AWAITING_REVIEW state`);
+      
+      // Create reviewer agent
+      await this.createReviewer(task);
+    } catch (error) {
+      log.error(`[orchestrator] Failed to transition task ${taskId}:`, error);
+    }
+  }
+
+  /**
+   * Handle review completion.
+   * Called when a reviewer agent finishes.
+   * Creates a merger agent for the task.
+   */
+  private async handleReviewComplete(taskId: string): Promise<void> {
+    const task = this.tasks.get(taskId);
+    if (!task) {
+      log.error(`[orchestrator] Task ${taskId} not found for review completion`);
+      return;
+    }
+
+    log.log(`[orchestrator] Task ${taskId} review complete`);
+
+    // Remove the reviewer agent
+    const reviewer = this.reviewers.get(taskId);
+    if (reviewer) {
+      await reviewer.stop();
+      this.reviewers.delete(taskId);
+    }
+
+    // Transition task state
+    try {
+      task.markReviewComplete();
+      log.log(`[orchestrator] Task ${taskId} moved to AWAITING_MERGE state`);
+      
+      // Create merger agent
+      await this.createMerger(task);
+    } catch (error) {
+      log.error(`[orchestrator] Failed to transition task ${taskId} after review:`, error);
+    }
+  }
+
+  /**
+   * Handle merge completion.
+   * Called when a merger agent finishes.
+   * Cleans up resources and marks task as complete.
+   */
+  private async handleMergeComplete(taskId: string): Promise<void> {
+    const task = this.tasks.get(taskId);
+    if (!task) {
+      log.error(`[orchestrator] Task ${taskId} not found for merge completion`);
+      return;
+    }
+
+    log.log(`[orchestrator] Task ${taskId} merge complete`);
+
+    // Remove the merger agent
+    const merger = this.mergers.get(taskId);
+    if (merger) {
+      await merger.stop();
+      this.mergers.delete(taskId);
+    }
+
+    // Transition task state
+    try {
+      task.markMergeComplete();
+      log.log(`[orchestrator] Task ${taskId} moved to COMPLETED state`);
+      
+      // Remove task from tracking
+      this.tasks.delete(taskId);
+      log.log(`[orchestrator] Task ${taskId} completed`);
+    } catch (error) {
+      log.error(`[orchestrator] Failed to transition task ${taskId} after merge:`, error);
     }
   }
 
