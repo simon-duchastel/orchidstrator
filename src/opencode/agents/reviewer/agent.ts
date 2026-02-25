@@ -113,9 +113,6 @@ export class ReviewerAgentImpl implements ReviewerAgent {
 
   /**
    * Handle session idle event - called by orchestrator when session becomes idle
-   * TODO: This relies on event stream subscription in session manager which is not
-   * yet implemented. The SessionManagerInterface needs a method to subscribe to
-   * AI runtime events and route them to agent handlers.
    */
   async handleSessionIdle(): Promise<void> {
     log.log(`[reviewer] Session ${this.session.sessionId} became idle for task ${this.taskId}`);
