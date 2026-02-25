@@ -1,29 +1,21 @@
 /**
  * OpenCode Session Manager
  *
- * Manages individual OpenCode sessions for each agent using the SDK's Session API.
- * Uses the OpenCode server as the source of truth for session state.
+ * Manages OpenCode sessions for agents using the @opencode-ai/sdk.
+ * Implements SessionManagerInterface to provide a unified interface.
+ * This is the ONLY file in the codebase that should import from @opencode-ai/sdk.
  */
 
 import { createOpencodeClient, type OpencodeClient, type Session } from "@opencode-ai/sdk";
 import { join } from "node:path";
 import { mkdirSync, existsSync } from "node:fs";
 import { log } from "../../core/logging/logger.js";
-
-export interface AgentSession {
-  /** Unique session identifier (from OpenCode) */
-  sessionId: string;
-  /** The task/agent this session belongs to */
-  taskId: string;
-  /** Path to the session's working directory (the worktree) */
-  workingDirectory: string;
-  /** The OpenCode client instance */
-  client: OpencodeClient;
-  /** When the session was created */
-  createdAt: Date;
-  /** Session status */
-  status: "running" | "stopping" | "stopped";
-}
+import {
+  type SessionManagerInterface,
+  type AgentSession,
+  type CreateSessionOptions,
+  type SessionIdleCallback,
+} from "../types.js";
 
 export interface OpencodeSessionManagerOptions {
   /** Base directory for all sessions (typically the worktrees directory) */
@@ -37,10 +29,13 @@ export interface OpencodeSessionManagerOptions {
  *
  * Uses the OpenCode server as the source of truth for session state.
  * All session queries go directly to the SDK rather than maintaining local state.
+ *
+ * Implements SessionManagerInterface for use with the agent orchestrator.
  */
-export class OpencodeSessionManager {
+export class OpencodeSessionManager implements SessionManagerInterface {
   private sessionsDir: string;
   private client: OpencodeClient;
+  private idleCallbacks: SessionIdleCallback[] = [];
 
   constructor(options: OpencodeSessionManagerOptions) {
     this.sessionsDir = options.sessionsDir;
@@ -64,23 +59,22 @@ export class OpencodeSessionManager {
   }
 
   /**
-   * Create a new OpenCode session for an agent.
+   * Create a new session for an agent.
    *
-   * @param taskId - The task ID (used as the session identifier base)
-   * @returns The created session info
+   * @param options - Session creation options
+   * @returns The created session
    * @throws Error if session already exists or creation fails
    */
-
-  async createSession(taskId: string): Promise<AgentSession> {
+  async createSession(options: CreateSessionOptions): Promise<AgentSession> {
     // Check if session already exists by querying the server
-    const existingSession = await this.getSession(taskId);
+    const existingSession = await this.getSession(options.taskId);
     if (existingSession) {
-      throw new Error(`Session for task ${taskId} already exists`);
+      throw new Error(`Session for task ${options.taskId} already exists`);
     }
 
-    const workingDirectory = join(this.sessionsDir, taskId);
+    const workingDirectory = options.workingDirectory;
 
-    // Ensure the working directory exists (should be created by worktree manager first)
+    // Ensure the working directory exists
     if (!existsSync(workingDirectory)) {
       mkdirSync(workingDirectory, { recursive: true });
     }
@@ -92,7 +86,7 @@ export class OpencodeSessionManager {
           directory: workingDirectory,
         },
         body: {
-          title: taskId,
+          title: options.taskId,
         },
       });
 
@@ -109,15 +103,14 @@ export class OpencodeSessionManager {
 
       return {
         sessionId,
-        taskId,
+        taskId: options.taskId,
         workingDirectory,
-        client: this.client,
         createdAt: new Date(),
         status: "running",
       };
     } catch (error) {
       throw new Error(
-        `Failed to create session for task ${taskId}: ${error instanceof Error ? error.message : "Unknown error"}`
+        `Failed to create session for task ${options.taskId}: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     }
   }
@@ -179,7 +172,6 @@ export class OpencodeSessionManager {
         sessionId: session.id,
         taskId,
         workingDirectory,
-        client: this.client,
         createdAt: new Date(session.time.created * 1000),
         status: "running",
       };
@@ -209,7 +201,6 @@ export class OpencodeSessionManager {
         sessionId: session.id,
         taskId: session.title,
         workingDirectory: join(this.sessionsDir, session.title),
-        client: this.client,
         createdAt: new Date(session.time.created * 1000),
         status: "running",
       }));
@@ -312,4 +303,35 @@ export class OpencodeSessionManager {
     }
   }
 
+  /**
+   * Register a callback for session idle events.
+   * For opencode, this is triggered via the event stream.
+   */
+  onSessionIdle(callback: SessionIdleCallback): void {
+    this.idleCallbacks.push(callback);
+  }
+
+  /**
+   * Trigger idle callbacks - called when a session becomes idle.
+   * This should be called by the event handler when opencode reports session idle.
+   */
+  triggerSessionIdle(taskId: string, session: AgentSession): void {
+    for (const callback of this.idleCallbacks) {
+      try {
+        callback(taskId, session);
+      } catch (error) {
+        // Log but don't let one callback failure stop others
+        console.error("Error in session idle callback:", error);
+      }
+    }
+  }
+}
+
+/**
+ * Factory function to create an OpencodeSessionManager
+ */
+export function createOpencodeSessionManager(
+  options: OpencodeSessionManagerOptions
+): OpencodeSessionManager {
+  return new OpencodeSessionManager(options);
 }

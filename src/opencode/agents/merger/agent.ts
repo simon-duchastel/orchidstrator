@@ -7,7 +7,7 @@
  * Worktree is managed by the orchestrator.
  */
 
-import { OpencodeSessionManager, type AgentSession } from "../../session/index.js";
+import { OpencodeSessionManager, type AgentSession } from "../../../agent-interface/index.js";
 import { fillMergerPromptTemplate } from "../../../templates/index.js";
 import { log } from "../../../core/logging/index.js";
 

@@ -8,7 +8,7 @@
  */
 
 import { TaskManager, type Task as DysonTask } from "dyson-swarm";
-import { OpencodeSessionManager, type AgentSession } from "../../session/index.js";
+import { OpencodeSessionManager, type AgentSession } from "../../../agent-interface/index.js";
 import { fillAgentPromptTemplate } from "../../../templates/index.js";
 import { log } from "../../../core/logging/index.js";
 import type { Task } from "../../../tasks/index.js";

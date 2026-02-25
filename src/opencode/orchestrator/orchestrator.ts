@@ -13,13 +13,12 @@
 import { TaskManager, type Task as DysonTask } from "dyson-swarm";
 import { WorktreeManager } from "../../git/worktrees/index.js";
 import { getWorktreesDir } from "../../config/paths.js";
-import { OpencodeSessionManager, type AgentSession } from "../session/index.js";
+import { OpencodeSessionManager, type AgentSession } from "../../agent-interface/index.js";
 import { Task, TaskState, createTaskFromDyson } from "../../tasks/index.js";
 import { createImplementorAgent, type ImplementorAgent } from "../agents/implementor/index.js";
 import { createReviewerAgent, type ReviewerAgent } from "../agents/reviewer/index.js";
 import { createMergerAgent, type MergerAgent } from "../agents/merger/index.js";
 import { log } from "../../core/logging/index.js";
-import type { GlobalEvent, EventSessionIdle } from "@opencode-ai/sdk";
 
 export interface AgentInfo {
   taskId: string;
@@ -72,8 +71,11 @@ export class AgentOrchestrator {
     this.abortController = new AbortController();
     log.log("[orchestrator] Starting task monitor...");
 
-    // Start listening for OpenCode events (including session.idle)
-    this.startEventListener();
+    // TODO: Refactor OpenCode event listening in future PR
+    // This was previously listening to OpenCode-specific events via @opencode-ai/sdk
+    // We need to add a generic event listening mechanism to SessionManagerInterface
+    // For now, session idle events are not handled
+    log.log("[orchestrator] Note: OpenCode event listening disabled - will be refactored in future PR");
 
     try {
       const stream = this.taskManager.listTaskStream({ status: "open" });
@@ -94,58 +96,23 @@ export class AgentOrchestrator {
   }
 
   /**
-   * Start listening to OpenCode global events for session idle notifications.
+   * Start listening to session idle events.
+   * TODO: Refactor in future PR to use generic event mechanism from SessionManagerInterface
    */
   private async startEventListener(): Promise<void> {
-    if (this.eventStreamAbortController) {
-      return;
-    }
-
-    this.eventStreamAbortController = new AbortController();
-    const client = this.sessionManager.getClient();
-
-    try {
-      log.log("[orchestrator] Starting OpenCode event listener...");
-      
-      const result = await client.global.event();
-      
-      for await (const event of result.stream) {
-        if (this.eventStreamAbortController.signal.aborted) {
-          break;
-        }
-
-        await this.handleEvent(event as GlobalEvent);
-      }
-    } catch (error) {
-      if ((error as Error).name === "AbortError") {
-        log.log("[orchestrator] Event listener aborted");
-      } else {
-        log.error("[orchestrator] Error in event listener:", error);
-      }
-    }
+    // TODO: Implement generic event listening via SessionManagerInterface
+    // This was previously OpenCode-specific event listening using @opencode-ai/sdk
+    log.log("[orchestrator] Event listener disabled - refactor in future PR");
   }
 
   /**
-   * Handle an OpenCode event.
-   * Currently only handles session.idle events.
+   * Handle a session idle event.
+   * TODO: Refactor in future PR - this was OpenCode-specific event handling
    */
-  private async handleEvent(event: GlobalEvent): Promise<void> {
-    if (!event.payload) {
-      return;
-    }
-
-    if (event.payload.type === "session.idle") {
-      const idleEvent = event.payload as EventSessionIdle;
-      const sessionId = idleEvent.properties.sessionID;
-      
-      log.log(`[orchestrator] Session ${sessionId} became idle`);
-      
-      // Find task by session ID and route to appropriate handler based on task state
-      const task = this.findTaskBySessionId(sessionId);
-      if (task) {
-        await this.handleSessionIdleForTask(task);
-      }
-    }
+  private async handleEvent(_event: unknown): Promise<void> {
+    // TODO: Implement generic event handling
+    // This was previously handling OpenCode GlobalEvent types
+    log.log("[orchestrator] Event handling disabled - refactor in future PR");
   }
 
   /**
@@ -498,7 +465,10 @@ export class AgentOrchestrator {
       log.log(`[orchestrator] Created worktree at ${worktreePath} for task ${task.taskId}`);
 
       // Create session
-      const session = await this.sessionManager.createSession(task.taskId);
+      const session = await this.sessionManager.createSession({
+        taskId: task.taskId,
+        workingDirectory: worktreePath,
+      });
       log.log(`[orchestrator] Created session ${session.sessionId} for task ${task.taskId}`);
       task.setSessionId(session.sessionId);
 
