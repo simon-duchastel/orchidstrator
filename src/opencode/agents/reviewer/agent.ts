@@ -8,7 +8,8 @@
  */
 
 import { type Task as DysonTask } from "dyson-swarm";
-import { OpencodeSessionManager, type AgentSession } from "../../../agent-interface/index.js";
+import { type AgentSession } from "../../../agent-interface/types.js";
+import type { SessionManagerInterface } from "../../../agent-interface/index.js";
 import { fillReviewerPromptTemplate } from "../../../templates/index.js";
 import { log } from "../../../core/logging/index.js";
 
@@ -17,7 +18,7 @@ export interface ReviewerAgentOptions {
   dysonTask: DysonTask;
   worktreePath: string;
   session: AgentSession;
-  sessionManager: OpencodeSessionManager;
+  sessionManager: SessionManagerInterface;
   onComplete: (taskId: string, session: AgentSession) => void;
   onError: (taskId: string, error: Error) => void;
 }
@@ -41,7 +42,7 @@ export class ReviewerAgentImpl implements ReviewerAgent {
   private dysonTask: DysonTask;
   private worktreePath: string;
   private session: AgentSession;
-  private sessionManager: OpencodeSessionManager;
+  private sessionManager: SessionManagerInterface;
   private onComplete: (taskId: string, session: AgentSession) => void;
   private onError: (taskId: string, error: Error) => void;
   private _isRunning = false;
