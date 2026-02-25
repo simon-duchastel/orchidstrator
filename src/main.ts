@@ -6,9 +6,10 @@
  */
 
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { getPidFile, getDirectoryPort, getOrchidDir, getMainRepoDir } from "./config/paths.js";
+import { getPidFile, getDirectoryPort, getOrchidDir, getMainRepoDir, getWorktreesDir } from "./config/paths.js";
 import { createOpencodeServer, type OpencodeServerInstance } from "./opencode/server.js";
-import { AgentOrchestrator } from "./opencode/orchestrator/index.js";
+import { AgentOrchestrator } from "./orchestrator/index.js";
+import { OpencodeSessionManager } from "./agent-interface/index.js";
 import { log } from "./core/logging/logger.js";
 
 let serverInstance: OpencodeServerInstance | null = null;
@@ -40,9 +41,18 @@ async function main() {
     log.log(`[orchid] Server secured with authentication (credentials in memory only)`);
 
     const mainRepoDir = getMainRepoDir();
+    const worktreesDir = getWorktreesDir(() => mainRepoDir);
+    
+    // Create session manager
+    const sessionManager = new OpencodeSessionManager({
+      sessionsDir: worktreesDir,
+      baseUrl: serverInstance.info.url,
+    });
+    
+    // Create and start the orchestrator
     orchestrator = new AgentOrchestrator({
       cwdProvider: () => mainRepoDir,
-      opencodeBaseUrl: serverInstance.info.url,
+      sessionManager: sessionManager,
     });
 
     orchestrator.start().catch((err: Error) => {
