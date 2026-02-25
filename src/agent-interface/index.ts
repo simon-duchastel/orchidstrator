@@ -19,3 +19,10 @@ export {
   type OpencodeSessionManagerOptions,
   createOpencodeSessionManager,
 } from "./opencode/index.js";
+
+// Pi implementation
+export {
+  PiSessionAdapter,
+  type PiSessionAdapterOptions,
+  createPiSessionAdapter,
+} from "./adapters/pi.js";
