@@ -44,7 +44,6 @@ export interface SessionManagerInterface {
   /**
    * Create a new session for an agent.
    *
-<<<<<<< HEAD
    * @param options - Session creation options
    * @returns The created session
    * @throws Error if session already exists or creation fails
