@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createMergerAgent } from "./merger.js";
-import { AgentType } from "../session-repository.js";
+import { AgentType } from "../agent-type.js";
 
 const mocks = vi.hoisted(() => {
   const mockAgentInstanceCreate = vi.fn();

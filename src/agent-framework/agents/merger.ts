@@ -8,7 +8,8 @@
  */
 
 import type { AgentInstance, AgentInstanceManager } from "./interface/index.js";
-import { type SessionRepository, AgentType } from "../session-repository.js";
+import { type SessionRepository } from "../session-repository.js";
+import { AgentType } from "../agent-type.js";
 import { 
   fillMergerPromptTemplate,
   getMergerSystemPrompt 

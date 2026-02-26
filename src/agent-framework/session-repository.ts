@@ -9,15 +9,9 @@
 
 import { join } from "node:path";
 import { existsSync, mkdirSync, readdirSync } from "node:fs";
+import { AgentType } from "./agent-type.js";
 
-/**
- * Enum for agent types
- */
-export enum AgentType {
-  IMPLEMENTOR = "implementor",
-  REVIEWER = "reviewer",
-  MERGER = "merger",
-}
+export { AgentType };
 
 /**
  * Represents a session for an agent.

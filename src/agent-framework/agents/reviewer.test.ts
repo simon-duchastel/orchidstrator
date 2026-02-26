@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createReviewerAgent } from "./reviewer.js";
-import { AgentType } from "../session-repository.js";
+import { AgentType } from "../agent-type.js";
 
 const mocks = vi.hoisted(() => {
   const mockSessionCreate = vi.fn();

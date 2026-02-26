@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mkdirSync, existsSync, readdirSync, type PathLike } from "node:fs";
 import { join } from "node:path";
-import { SessionRepository, AgentType, createSessionRepository } from "./session-repository.js";
+import { SessionRepository, createSessionRepository } from "./session-repository.js";
+import { AgentType } from "./agent-type.js";
 
 // Mock the fs module
 vi.mock("node:fs", () => ({
