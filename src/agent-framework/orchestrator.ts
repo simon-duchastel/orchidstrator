@@ -12,9 +12,11 @@
 
 import { TaskManager, type Task as DysonTask } from "dyson-swarm";
 import { WorktreeManager } from "../core/git/worktrees/index.js";
-import { getWorktreesDir } from "../config/paths.js";
+import { getWorktreesDir, getOrchidDir } from "../config/paths.js";
 import type { AgentInstanceManager } from "./agents/interface/index.js";
+import { SessionRepository, createSessionRepository } from "./session-repository.js";
 import { Task, TaskState, createTaskFromDyson } from "../core/tasks/index.js";
+import { join } from "node:path";
 import { createImplementorAgent, type ImplementorAgent } from "./agents/implementor.js";
 import { createReviewerAgent, type ReviewerAgent } from "./agents/reviewer.js";
 import { createMergerAgent, type MergerAgent } from "./agents/merger.js";
@@ -43,6 +45,7 @@ export class AgentOrchestrator {
   private abortController: AbortController | null = null;
   private worktreeManager: WorktreeManager;
   private agentInstanceManager: AgentInstanceManager;
+  private sessionRepository: SessionRepository;
   private cwdProvider: () => string;
   private worktreesDir: string;
 
@@ -51,12 +54,17 @@ export class AgentOrchestrator {
     this.taskManager = new TaskManager({ cwdProvider: this.cwdProvider });
     this.worktreeManager = options.worktreeManager ?? new WorktreeManager(this.cwdProvider());
     
-    // Initialize session manager
+    // Initialize agent instance manager
     this.worktreesDir = getWorktreesDir(this.cwdProvider);
     if (!options.agentInstanceManager) {
-      throw new Error("Session manager is required");
+      throw new Error("Agent instance manager is required");
     }
     this.agentInstanceManager = options.agentInstanceManager;
+    
+    // Initialize session repository
+    const orchidDir = getOrchidDir(this.cwdProvider);
+    const sessionsDir = join(orchidDir, "sessions");
+    this.sessionRepository = createSessionRepository({ sessionsDir });
   }
 
   async start(): Promise<void> {
@@ -237,6 +245,7 @@ export class AgentOrchestrator {
         dysonTask: task.dysonTask,
         worktreePath: worktreePath,
         agentInstanceManager: this.agentInstanceManager,
+        sessionRepository: this.sessionRepository,
         taskManager: this.taskManager,
         onComplete: (taskId: string) => {
           this.handleImplementationComplete(taskId);
@@ -285,6 +294,7 @@ export class AgentOrchestrator {
         dysonTask: task.dysonTask,
         worktreePath: worktreePath,
         agentInstanceManager: this.agentInstanceManager,
+        sessionRepository: this.sessionRepository,
         onComplete: (taskId: string) => {
           this.handleReviewComplete(taskId);
         },
@@ -331,6 +341,7 @@ export class AgentOrchestrator {
         taskId: task.taskId,
         worktreePath: worktreePath,
         agentInstanceManager: this.agentInstanceManager,
+        sessionRepository: this.sessionRepository,
         onComplete: (taskId: string) => {
           this.handleMergeComplete(taskId);
         },
