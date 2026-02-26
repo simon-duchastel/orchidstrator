@@ -9,6 +9,7 @@ import { existsSync, mkdirSync } from "node:fs";
 import {
   createAgentSession,
   DefaultResourceLoader,
+  SessionManager,
   type AgentSession,
   type CreateAgentSessionResult,
 } from "@mariozechner/pi-coding-agent";
@@ -80,6 +81,7 @@ export class PiSessionAdapter implements SessionManagerInterface {
       const result: CreateAgentSessionResult = await createAgentSession({
         cwd: options.workingDirectory,
         resourceLoader,
+        sessionManager: SessionManager.inMemory(),
       });
 
       const sessionId = `pi-${options.taskId}-${Date.now()}`;
