@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { existsSync, mkdirSync } from "node:fs";
 import {
   createAgentSession,
+  DefaultResourceLoader,
   SessionManager,
   type AgentSession,
   type CreateAgentSessionResult,
@@ -71,9 +72,15 @@ export class PiSessionAdapter implements SessionManagerInterface {
     }
 
     try {
-      // Create Pi session using SDK
+      const resourceLoader = new DefaultResourceLoader({
+        systemPromptOverride: () => options.systemPrompt,
+        appendSystemPromptOverride: () => [],
+      });
+      await resourceLoader.reload();
+
       const result: CreateAgentSessionResult = await createAgentSession({
         cwd: options.workingDirectory,
+        resourceLoader,
         sessionManager: SessionManager.inMemory(),
       });
 

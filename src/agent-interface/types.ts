@@ -34,6 +34,8 @@ export interface CreateSessionOptions {
   taskId: string;
   /** Path to the working directory */
   workingDirectory: string;
+  /** System prompt to override the default */
+  systemPrompt: string;
 }
 
 /**

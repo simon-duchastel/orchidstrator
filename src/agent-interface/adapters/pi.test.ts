@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// Mock the Pi SDK
 const mockPrompt = vi.fn();
 const mockSubscribe = vi.fn();
 const mockPiSession = {
@@ -8,9 +7,13 @@ const mockPiSession = {
   subscribe: mockSubscribe,
 };
 const mockCreateAgentSession = vi.fn();
+const mockReload = vi.fn();
 
 vi.mock("@mariozechner/pi-coding-agent", () => ({
   createAgentSession: (...args: unknown[]) => mockCreateAgentSession(...args),
+  DefaultResourceLoader: class {
+    reload = mockReload;
+  },
   SessionManager: {
     inMemory: () => ({}),
   },
@@ -68,6 +71,7 @@ describe("PiSessionAdapter", () => {
       const session = await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
+        systemPrompt: "fake system prompt for test",
       });
 
       expect(session.taskId).toBe("task-1");
@@ -85,12 +89,14 @@ describe("PiSessionAdapter", () => {
       await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
+        systemPrompt: "fake system prompt for test",
       });
 
       await expect(
         adapter.createSession({
           taskId: "task-1",
           workingDirectory: "/test/sessions/task-1",
+          systemPrompt: "fake system prompt for test",
         })
       ).rejects.toThrow("Session for task task-1 already exists");
     });
@@ -105,6 +111,7 @@ describe("PiSessionAdapter", () => {
       await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
+        systemPrompt: "fake system prompt for test",
       });
 
       expect(mkdirSync).toHaveBeenCalledWith("/test/sessions/task-1", { recursive: true });
@@ -117,6 +124,7 @@ describe("PiSessionAdapter", () => {
         adapter.createSession({
           taskId: "task-1",
           workingDirectory: "/test/sessions/task-1",
+          systemPrompt: "fake system prompt for test",
         })
       ).rejects.toThrow("Failed to create Pi session for task task-1: SDK Error");
     });
@@ -130,6 +138,7 @@ describe("PiSessionAdapter", () => {
       await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
+        systemPrompt: "fake system prompt for test",
       });
 
       expect(mockSubscribe).toHaveBeenCalled();
@@ -146,6 +155,7 @@ describe("PiSessionAdapter", () => {
       const createdSession = await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
+        systemPrompt: "fake system prompt for test",
       });
 
       const retrievedSession = await adapter.getSession("task-1");
@@ -171,6 +181,7 @@ describe("PiSessionAdapter", () => {
       const session = await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
+        systemPrompt: "fake system prompt for test",
       });
       createdSessionId = session.sessionId;
     });
@@ -216,6 +227,7 @@ describe("PiSessionAdapter", () => {
       await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
+        systemPrompt: "fake system prompt for test",
       });
 
       // Simulate message_end event
@@ -247,6 +259,7 @@ describe("PiSessionAdapter", () => {
       await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
+        systemPrompt: "fake system prompt for test",
       });
 
       // Simulate turn_end event
@@ -277,6 +290,7 @@ describe("PiSessionAdapter", () => {
       await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
+        systemPrompt: "fake system prompt for test",
       });
 
       if (eventListener) {
@@ -309,6 +323,7 @@ describe("PiSessionAdapter", () => {
       await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
+        systemPrompt: "fake system prompt for test",
       });
 
       if (eventListener) {
