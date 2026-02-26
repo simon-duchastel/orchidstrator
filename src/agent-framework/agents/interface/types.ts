@@ -36,6 +36,8 @@ export interface CreateAgentInstanceOptions {
   workingDirectory: string;
   /** System prompt to override the default */
   systemPrompt: string;
+  /** Optional path to session file for resuming/attaching to existing session */
+  sessionFilePath?: string;
 }
 
 /**

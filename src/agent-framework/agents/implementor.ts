@@ -10,6 +10,7 @@
 import { TaskManager, type Task as DysonTask } from "dyson-swarm";
 import { type AgentInstance } from "./interface/types.js";
 import type { AgentInstanceManager } from "./interface/index.js";
+import { type SessionRepository, AgentType } from "../session-repository.js";
 import { 
   fillImplementorAgentPromptTemplate, 
   getImplementorSystemPrompt 
@@ -21,6 +22,7 @@ export interface ImplementorAgentOptions {
   dysonTask: DysonTask;
   worktreePath: string;
   agentInstanceManager: AgentInstanceManager;
+  sessionRepository: SessionRepository;
   taskManager: TaskManager;
   onComplete: (taskId: string) => void;
   onError: (taskId: string, error: Error) => void;
@@ -46,6 +48,7 @@ export class ImplementorAgentImpl implements ImplementorAgent {
   private worktreePath: string;
   private agentInstance: AgentInstance | undefined;
   private agentInstanceManager: AgentInstanceManager;
+  private sessionRepository: SessionRepository;
   private taskManager: TaskManager;
   private onComplete: (taskId: string) => void;
   private onError: (taskId: string, error: Error) => void;
@@ -57,6 +60,7 @@ export class ImplementorAgentImpl implements ImplementorAgent {
     this.dysonTask = options.dysonTask;
     this.worktreePath = options.worktreePath;
     this.agentInstanceManager = options.agentInstanceManager;
+    this.sessionRepository = options.sessionRepository;
     this.taskManager = options.taskManager;
     this.onComplete = options.onComplete;
     this.onError = options.onError;
@@ -64,7 +68,7 @@ export class ImplementorAgentImpl implements ImplementorAgent {
 
   /**
    * Start the implementor agent.
-   * Creates its own agent instance with implementor system prompt, assigns task, then sends initial prompt.
+   * Gets or creates a session from the repository, then creates its agent instance.
    */
   async start(): Promise<void> {
     if (this._isRunning) {
@@ -76,11 +80,16 @@ export class ImplementorAgentImpl implements ImplementorAgent {
     log.log(`[implementor] Starting agent ${this.agentId} for task ${this.taskId}`);
 
     try {
-      // Create agent instance with implementor system prompt
+      // Get or create session from repository
+      const session = this.sessionRepository.getOrCreateSession(this.taskId, AgentType.IMPLEMENTOR);
+      log.log(`[implementor] Using session ${session.filename} for task ${this.taskId}`);
+
+      // Create agent instance with implementor system prompt and session file
       this.agentInstance = await this.agentInstanceManager.createAgentInstance({
         taskId: this.taskId,
         workingDirectory: this.worktreePath,
         systemPrompt: getImplementorSystemPrompt(),
+        sessionFilePath: session.filePath,
       });
       log.log(`[implementor] Created agent instance ${this.agentInstance.instanceId} for task ${this.taskId}`);
       

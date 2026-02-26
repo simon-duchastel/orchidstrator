@@ -8,6 +8,7 @@
  */
 
 import type { AgentInstance, AgentInstanceManager } from "./interface/index.js";
+import { type SessionRepository, AgentType } from "../session-repository.js";
 import { 
   fillMergerPromptTemplate,
   getMergerSystemPrompt 
@@ -18,6 +19,7 @@ export interface MergerAgentOptions {
   taskId: string;
   worktreePath: string;
   agentInstanceManager: AgentInstanceManager;
+  sessionRepository: SessionRepository;
   onComplete: (taskId: string) => void;
   onError: (taskId: string, error: Error) => void;
 }
@@ -30,16 +32,13 @@ export interface MergerAgent {
   isRunning(): boolean;
 }
 
-/**
- * MergerAgent handles the merge phase of a task.
- * Worktree is provided by the orchestrator, but agent instance is managed by the agent.
- */
 export class MergerAgentImpl implements MergerAgent {
   readonly agentId: string;
   readonly taskId: string;
   private worktreePath: string;
   private agentInstance: AgentInstance | undefined;
   private agentInstanceManager: AgentInstanceManager;
+  private sessionRepository: SessionRepository;
   private onComplete: (taskId: string) => void;
   private onError: (taskId: string, error: Error) => void;
   private _isRunning = false;
@@ -49,14 +48,11 @@ export class MergerAgentImpl implements MergerAgent {
     this.agentId = `${options.taskId}-merger`;
     this.worktreePath = options.worktreePath;
     this.agentInstanceManager = options.agentInstanceManager;
+    this.sessionRepository = options.sessionRepository;
     this.onComplete = options.onComplete;
     this.onError = options.onError;
   }
 
-  /**
-   * Start the merger agent.
-   * Creates its own agent instance with merger system prompt, then sends initial prompt.
-   */
   async start(): Promise<void> {
     if (this._isRunning) {
       log.log(`[merger] Agent ${this.agentId} already running`);
@@ -67,15 +63,17 @@ export class MergerAgentImpl implements MergerAgent {
     log.log(`[merger] Starting agent ${this.agentId} for task ${this.taskId}`);
 
     try {
-      // Create agent instance with merger system prompt
+      const session = this.sessionRepository.getOrCreateSession(this.taskId, AgentType.MERGER);
+      log.log(`[merger] Using session ${session.filename} for task ${this.taskId}`);
+
       this.agentInstance = await this.agentInstanceManager.createAgentInstance({
         taskId: this.taskId,
         workingDirectory: this.worktreePath,
         systemPrompt: getMergerSystemPrompt(),
+        sessionFilePath: session.filePath,
       });
       log.log(`[merger] Created agent instance ${this.agentInstance.instanceId} for task ${this.taskId}`);
 
-      // Send initial prompt
       await this.sendInitialPrompt();
 
       log.log(`[merger] Agent ${this.agentId} started successfully`);
@@ -86,10 +84,6 @@ export class MergerAgentImpl implements MergerAgent {
     }
   }
 
-  /**
-   * Stop the merger agent.
-   * Cleans up its own agent instance.
-   */
   async stop(): Promise<void> {
     if (!this._isRunning) {
       return;
@@ -98,7 +92,6 @@ export class MergerAgentImpl implements MergerAgent {
     log.log(`[merger] Stopping agent ${this.agentId}`);
     this._isRunning = false;
     
-    // Clean up agent instance if it exists
     if (this.agentInstance) {
       try {
         await this.agentInstanceManager.removeAgentInstance(this.taskId);
@@ -112,23 +105,14 @@ export class MergerAgentImpl implements MergerAgent {
     log.log(`[merger] Agent ${this.agentId} stopped`);
   }
 
-  /**
-   * Check if agent is running
-   */
   isRunning(): boolean {
     return this._isRunning;
   }
 
-  /**
-   * Get the agent instance
-   */
   getAgentInstance(): AgentInstance | undefined {
     return this.agentInstance;
   }
 
-  /**
-   * Handle agent instance idle event - called by orchestrator when agent instance becomes idle
-   */
   async handleAgentInstanceIdle(): Promise<void> {
     if (!this.agentInstance) {
       log.error(`[merger] No agent instance available for task ${this.taskId}`);
@@ -139,7 +123,6 @@ export class MergerAgentImpl implements MergerAgent {
 
     this._isRunning = false;
 
-    // Clean up agent instance
     try {
       await this.agentInstanceManager.removeAgentInstance(this.taskId);
       log.log(`[merger] Removed agent instance for task ${this.taskId}`);
@@ -148,7 +131,6 @@ export class MergerAgentImpl implements MergerAgent {
     }
     this.agentInstance = undefined;
 
-    // Notify completion
     this.onComplete(this.taskId);
   }
 
@@ -177,9 +159,6 @@ export class MergerAgentImpl implements MergerAgent {
   }
 }
 
-/**
- * Factory function to create a MergerAgent
- */
 export function createMergerAgent(options: MergerAgentOptions): MergerAgent {
   return new MergerAgentImpl(options);
 }

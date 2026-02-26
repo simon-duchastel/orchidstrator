@@ -160,4 +160,90 @@ describe("SessionRepository", () => {
       expect(session.filePath).toContain("reviewer-1.json");
     });
   });
+
+  describe("findLatestSessionVersion edge cases", () => {
+    beforeEach(() => {
+      repository = createSessionRepository({ sessionsDir: TEST_DIR });
+    });
+
+    it("should ignore files that do not match the pattern", () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockReturnValue([
+        "implementor-1.json",
+        "other-file.txt",
+        "implementor-2.json",
+        "reviewer-1.json",
+        "malformed-implementor.json",
+      ] as unknown as ReturnType<typeof readdirSync>);
+
+      const session = repository.getOrCreateSession("task-1", AgentType.IMPLEMENTOR);
+
+      expect(session.version).toBe(2);
+      expect(session.agentType).toBe(AgentType.IMPLEMENTOR);
+    });
+
+    it("should handle empty task directory", () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockReturnValue([] as unknown as ReturnType<typeof readdirSync>);
+
+      const session = repository.getOrCreateSession("task-1", AgentType.IMPLEMENTOR);
+
+      expect(session.version).toBe(1);
+    });
+
+    it("should not confuse similar agent types", () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockReturnValue([
+        "implementor-5.json",
+        "implementor-v2-1.json",
+        "reviewer-10.json",
+        "merger-3.json",
+      ] as unknown as ReturnType<typeof readdirSync>);
+
+      const implementorSession = repository.getOrCreateSession("task-1", AgentType.IMPLEMENTOR);
+      const reviewerSession = repository.getOrCreateSession("task-1", AgentType.REVIEWER);
+      const mergerSession = repository.getOrCreateSession("task-1", AgentType.MERGER);
+
+      expect(implementorSession.version).toBe(5);
+      expect(reviewerSession.version).toBe(10);
+      expect(mergerSession.version).toBe(3);
+    });
+
+    it("should handle files with very high version numbers", () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockReturnValue([
+        "implementor-1.json",
+        "implementor-999.json",
+        "implementor-100.json",
+      ] as unknown as ReturnType<typeof readdirSync>);
+
+      const session = repository.getOrCreateSession("task-1", AgentType.IMPLEMENTOR);
+
+      expect(session.version).toBe(999);
+    });
+  });
+
+  describe("task directory creation", () => {
+    beforeEach(() => {
+      repository = createSessionRepository({ sessionsDir: TEST_DIR });
+    });
+
+    it("should create task directory when getting session for new task", () => {
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        // sessionsDir exists, but task dir does not
+        if (typeof path === 'string') {
+          if (path === TEST_DIR) return true;
+          if (path.includes("new-task")) return false;
+        }
+        return false;
+      });
+
+      repository.getOrCreateSession("new-task", AgentType.IMPLEMENTOR);
+
+      expect(mkdirSync).toHaveBeenCalledWith(
+        join(TEST_DIR, "new-task"),
+        { recursive: true }
+      );
+    });
+  });
 });

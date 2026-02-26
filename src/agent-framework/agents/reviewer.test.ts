@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createReviewerAgent } from "./reviewer.js";
+import { AgentType } from "../session-repository.js";
 
 const mocks = vi.hoisted(() => {
   const mockSessionCreate = vi.fn();
   const mockSessionRemove = vi.fn();
   const mockSendMessage = vi.fn();
+  const mockGetOrCreateSession = vi.fn();
 
   class MockAgentInstanceManager {
     createAgentInstance = mockSessionCreate;
@@ -12,11 +14,17 @@ const mocks = vi.hoisted(() => {
     sendMessage = mockSendMessage;
   }
 
+  class MockSessionRepository {
+    getOrCreateSession = mockGetOrCreateSession;
+  }
+
   return {
     mockSessionCreate,
     mockSessionRemove,
     mockSendMessage,
+    mockGetOrCreateSession,
     MockAgentInstanceManager,
+    MockSessionRepository,
   };
 });
 
@@ -27,10 +35,16 @@ vi.mock("../../templates/index.js", () => ({
 
 describe("ReviewerAgent", () => {
   let mockSessionManager: any;
+  let mockSessionRepository: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockSessionManager = new mocks.MockAgentInstanceManager();
+    mockSessionRepository = new mocks.MockSessionRepository();
+    mocks.mockGetOrCreateSession.mockReturnValue({
+      filename: "reviewer-1",
+      filePath: "/test/.orchid/sessions/task-1/reviewer-1.json",
+    });
   });
 
   afterEach(() => {
@@ -59,16 +73,19 @@ describe("ReviewerAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockSessionManager,
+        sessionRepository: mockSessionRepository,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
 
       await agent.start();
 
+      expect(mocks.mockGetOrCreateSession).toHaveBeenCalledWith("task-1", AgentType.REVIEWER);
       expect(mocks.mockSessionCreate).toHaveBeenCalledWith({
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         systemPrompt: "reviewer system prompt",
+        sessionFilePath: "/test/.orchid/sessions/task-1/reviewer-1.json",
       });
     });
 
@@ -93,6 +110,7 @@ describe("ReviewerAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockSessionManager,
+        sessionRepository: mockSessionRepository,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
@@ -120,6 +138,7 @@ describe("ReviewerAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockSessionManager,
+        sessionRepository: mockSessionRepository,
         onComplete: vi.fn(),
         onError: onErrorMock,
       });
@@ -154,6 +173,7 @@ describe("ReviewerAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockSessionManager,
+        sessionRepository: mockSessionRepository,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
@@ -178,6 +198,7 @@ describe("ReviewerAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockSessionManager,
+        sessionRepository: mockSessionRepository,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
@@ -210,6 +231,7 @@ describe("ReviewerAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockSessionManager,
+        sessionRepository: mockSessionRepository,
         onComplete: onCompleteMock,
         onError: vi.fn(),
       });
@@ -236,6 +258,7 @@ describe("ReviewerAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockSessionManager,
+        sessionRepository: mockSessionRepository,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
@@ -264,6 +287,7 @@ describe("ReviewerAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockSessionManager,
+        sessionRepository: mockSessionRepository,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });

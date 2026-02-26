@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createMergerAgent } from "./merger.js";
+import { AgentType } from "../session-repository.js";
 
 const mocks = vi.hoisted(() => {
   const mockAgentInstanceCreate = vi.fn();
   const mockAgentInstanceRemove = vi.fn();
   const mockSendMessage = vi.fn();
+  const mockGetOrCreateSession = vi.fn();
 
   class MockAgentInstanceManager {
     createAgentInstance = mockAgentInstanceCreate;
@@ -12,11 +14,17 @@ const mocks = vi.hoisted(() => {
     sendMessage = mockSendMessage;
   }
 
+  class MockSessionRepository {
+    getOrCreateSession = mockGetOrCreateSession;
+  }
+
   return {
     mockAgentInstanceCreate,
     mockAgentInstanceRemove,
     mockSendMessage,
+    mockGetOrCreateSession,
     MockAgentInstanceManager,
+    MockSessionRepository,
   };
 });
 
@@ -27,10 +35,16 @@ vi.mock("../../templates/index.js", () => ({
 
 describe("MergerAgent", () => {
   let mockAgentInstanceManager: any;
+  let mockSessionRepository: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockAgentInstanceManager = new mocks.MockAgentInstanceManager();
+    mockSessionRepository = new mocks.MockSessionRepository();
+    mocks.mockGetOrCreateSession.mockReturnValue({
+      filename: "merger-1",
+      filePath: "/test/.orchid/sessions/task-1/merger-1.json",
+    });
   });
 
   afterEach(() => {
@@ -53,16 +67,19 @@ describe("MergerAgent", () => {
         taskId: "task-1",
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
 
       await agent.start();
 
+      expect(mocks.mockGetOrCreateSession).toHaveBeenCalledWith("task-1", AgentType.MERGER);
       expect(mocks.mockAgentInstanceCreate).toHaveBeenCalledWith({
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         systemPrompt: "merger system prompt",
+        sessionFilePath: "/test/.orchid/sessions/task-1/merger-1.json",
       });
     });
 
@@ -81,6 +98,7 @@ describe("MergerAgent", () => {
         taskId: "task-1",
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
@@ -102,6 +120,7 @@ describe("MergerAgent", () => {
         taskId: "task-1",
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         onComplete: vi.fn(),
         onError: onErrorMock,
       });
@@ -130,6 +149,7 @@ describe("MergerAgent", () => {
         taskId: "task-1",
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
@@ -148,6 +168,7 @@ describe("MergerAgent", () => {
         taskId: "task-1",
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
@@ -174,6 +195,7 @@ describe("MergerAgent", () => {
         taskId: "task-1",
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         onComplete: onCompleteMock,
         onError: vi.fn(),
       });
@@ -194,6 +216,7 @@ describe("MergerAgent", () => {
         taskId: "task-1",
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
@@ -216,6 +239,7 @@ describe("MergerAgent", () => {
         taskId: "task-1",
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
