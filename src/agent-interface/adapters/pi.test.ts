@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// Mock the Pi SDK
 const mockPrompt = vi.fn();
 const mockSubscribe = vi.fn();
 const mockPiSession = {
@@ -8,11 +7,12 @@ const mockPiSession = {
   subscribe: mockSubscribe,
 };
 const mockCreateAgentSession = vi.fn();
+const mockReload = vi.fn();
 
 vi.mock("@mariozechner/pi-coding-agent", () => ({
   createAgentSession: (...args: unknown[]) => mockCreateAgentSession(...args),
-  SessionManager: {
-    inMemory: () => ({}),
+  DefaultResourceLoader: class {
+    reload = mockReload;
   },
 }));
 
@@ -68,6 +68,7 @@ describe("PiSessionAdapter", () => {
       const session = await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
+        systemPrompt: "test system prompt",
       });
 
       expect(session.taskId).toBe("task-1");
@@ -85,6 +86,7 @@ describe("PiSessionAdapter", () => {
       await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
+        systemPrompt: "test system prompt",
       });
 
       await expect(
@@ -105,6 +107,7 @@ describe("PiSessionAdapter", () => {
       await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
+        systemPrompt: "test system prompt",
       });
 
       expect(mkdirSync).toHaveBeenCalledWith("/test/sessions/task-1", { recursive: true });
@@ -130,6 +133,7 @@ describe("PiSessionAdapter", () => {
       await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
+        systemPrompt: "test system prompt",
       });
 
       expect(mockSubscribe).toHaveBeenCalled();
@@ -146,6 +150,7 @@ describe("PiSessionAdapter", () => {
       const createdSession = await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
+        systemPrompt: "test system prompt",
       });
 
       const retrievedSession = await adapter.getSession("task-1");
@@ -171,6 +176,7 @@ describe("PiSessionAdapter", () => {
       const session = await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
+        systemPrompt: "test system prompt",
       });
       createdSessionId = session.sessionId;
     });
@@ -216,6 +222,7 @@ describe("PiSessionAdapter", () => {
       await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
+        systemPrompt: "test system prompt",
       });
 
       // Simulate message_end event
@@ -247,6 +254,7 @@ describe("PiSessionAdapter", () => {
       await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
+        systemPrompt: "test system prompt",
       });
 
       // Simulate turn_end event
@@ -277,6 +285,7 @@ describe("PiSessionAdapter", () => {
       await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
+        systemPrompt: "test system prompt",
       });
 
       if (eventListener) {
@@ -309,6 +318,7 @@ describe("PiSessionAdapter", () => {
       await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
+        systemPrompt: "test system prompt",
       });
 
       if (eventListener) {
