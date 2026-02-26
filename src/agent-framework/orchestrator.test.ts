@@ -9,12 +9,13 @@ const mocks = vi.hoisted(() => {
   const mockUnassignTask = vi.fn();
   const mockWorktreeCreate = vi.fn();
   const mockWorktreeRemove = vi.fn();
-  const mockSessionCreate = vi.fn();
-  const mockSessionRemove = vi.fn();
-  const mockSessionStopAll = vi.fn();
+  const mockInstanceCreate = vi.fn();
+  const mockInstanceRemove = vi.fn();
+  const mockStopAllAgentInstances = vi.fn();
   const mockSendMessage = vi.fn();
-  const mockGetSession = vi.fn();
+  const mockGetAgentInstance = vi.fn();
   const mockGlobalEvent = vi.fn();
+  const mockGetOrCreateSession = vi.fn();
   
   class MockTaskManager {
     listTaskStream = mockListTaskStream;
@@ -23,13 +24,17 @@ const mocks = vi.hoisted(() => {
     unassignTask = mockUnassignTask;
   }
   
-  class MockSessionManager {
-    createSession = mockSessionCreate;
-    removeSession = mockSessionRemove;
-    stopAllSessions = mockSessionStopAll;
+  class MockAgentInstanceManager {
+    createAgentInstance = mockInstanceCreate;
+    removeAgentInstance = mockInstanceRemove;
+    stopAllAgentInstances = mockStopAllAgentInstances;
     sendMessage = mockSendMessage;
-    getSession = mockGetSession;
-    onSessionIdle = vi.fn();
+    getAgentInstance = mockGetAgentInstance;
+    onAgentInstanceIdle = vi.fn();
+  }
+
+  class MockSessionRepository {
+    getOrCreateSession = mockGetOrCreateSession;
   }
   
   return {
@@ -39,14 +44,16 @@ const mocks = vi.hoisted(() => {
     mockUnassignTask,
     mockWorktreeCreate,
     mockWorktreeRemove,
-    mockSessionCreate,
-    mockSessionRemove,
-    mockSessionStopAll,
+    mockInstanceCreate,
+    mockInstanceRemove,
+    mockStopAllAgentInstances,
     mockSendMessage,
-    mockGetSession,
+    mockGetAgentInstance,
     mockGlobalEvent,
+    mockGetOrCreateSession,
     MockTaskManager,
-    MockSessionManager,
+    MockAgentInstanceManager,
+    MockSessionRepository,
   };
 });
 
@@ -67,12 +74,22 @@ vi.mock("../core/git/worktrees/index.js", () => ({
 
 vi.mock("../config/paths.js", () => ({
   getWorktreesDir: () => "/test/worktrees",
+  getOrchidDir: () => "/test/.orchid",
+}));
+
+vi.mock("./session-repository.js", () => ({
+  createSessionRepository: () => new mocks.MockSessionRepository(),
+  AgentType: {
+    IMPLEMENTOR: "implementor",
+    REVIEWER: "reviewer",
+    MERGER: "merger",
+  },
 }));
 
 describe("AgentOrchestrator", () => {
   let orchestrator: AgentOrchestrator;
   let mockWorktreeManager: any;
-  let mockSessionManager: any;
+  let mockAgentInstanceManager: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -85,14 +102,24 @@ describe("AgentOrchestrator", () => {
       getWorktreePath: vi.fn(),
       isWorktree: vi.fn(),
     };
-    mockSessionManager = {
-      createSession: mocks.mockSessionCreate,
-      removeSession: mocks.mockSessionRemove,
-      stopAllSessions: mocks.mockSessionStopAll,
+    mockAgentInstanceManager = {
+      createAgentInstance: mocks.mockInstanceCreate,
+      removeAgentInstance: mocks.mockInstanceRemove,
+      stopAllAgentInstances: mocks.mockStopAllAgentInstances,
       sendMessage: mocks.mockSendMessage,
-      getSession: mocks.mockGetSession,
-      onSessionIdle: vi.fn(),
+      getAgentInstance: mocks.mockGetAgentInstance,
+      onAgentInstanceIdle: vi.fn(),
     };
+    
+    // Default mock for getOrCreateSession
+    mocks.mockGetOrCreateSession.mockReturnValue({
+      taskId: "task-1",
+      agentType: "implementor",
+      version: 1,
+      filename: "implementor-1",
+      filePath: "/test/.orchid/sessions/task-1/implementor-1.json",
+    });
+    
     mocks.mockListTasks.mockResolvedValue([]);
     mocks.mockSendMessage.mockResolvedValue(undefined);
     mocks.mockAssignTask.mockResolvedValue(undefined);
@@ -100,7 +127,7 @@ describe("AgentOrchestrator", () => {
     
     orchestrator = new AgentOrchestrator({ 
       worktreeManager: mockWorktreeManager,
-      sessionManager: mockSessionManager,
+      agentInstanceManager: mockAgentInstanceManager,
     });
   });
 
@@ -157,14 +184,14 @@ describe("AgentOrchestrator", () => {
 
   describe("task lifecycle", () => {
     it("should create a task for a new open task", async () => {
-      const mockSession = {
-        sessionId: "session-1",
+      const mockInstance = {
+        instanceId: "instance-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
         status: "running" as const,
       };
-      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockInstanceCreate.mockResolvedValue(mockInstance);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
 
       const streamIterator = (async function* () {
@@ -186,14 +213,14 @@ describe("AgentOrchestrator", () => {
     });
 
     it("should not start duplicate implementors for the same task", async () => {
-      const mockSession = {
-        sessionId: "session-1",
+      const mockInstance = {
+        instanceId: "instance-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
         status: "running" as const,
       };
-      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockInstanceCreate.mockResolvedValue(mockInstance);
       mocks.mockWorktreeCreate.mockResolvedValue(true);
 
       const task = { id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" };
@@ -213,14 +240,14 @@ describe("AgentOrchestrator", () => {
     it("should cleanup tasks that are no longer open", async () => {
       mocks.mockWorktreeCreate.mockResolvedValue(true);
       mocks.mockWorktreeRemove.mockResolvedValue(true);
-      const mockSession = {
-        sessionId: "session-1",
+      const mockInstance = {
+        instanceId: "instance-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
         status: "running" as const,
       };
-      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockInstanceCreate.mockResolvedValue(mockInstance);
 
       const streamIterator = (async function* () {
         yield [{ id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" }];

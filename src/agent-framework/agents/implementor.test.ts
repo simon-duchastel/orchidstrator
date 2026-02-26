@@ -1,16 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createImplementorAgent } from "./implementor.js";
+import { AgentType } from "../session-repository.js";
 
 const mocks = vi.hoisted(() => {
-  const mockSessionCreate = vi.fn();
-  const mockSessionRemove = vi.fn();
+  const mockInstanceCreate = vi.fn();
+  const mockInstanceRemove = vi.fn();
   const mockSendMessage = vi.fn();
   const mockAssignTask = vi.fn();
   const mockUnassignTask = vi.fn();
+  const mockGetOrCreateSession = vi.fn();
 
-  class MockSessionManager {
-    createSession = mockSessionCreate;
-    removeSession = mockSessionRemove;
+  class MockAgentInstanceManager {
+    createAgentInstance = mockInstanceCreate;
+    removeAgentInstance = mockInstanceRemove;
     sendMessage = mockSendMessage;
   }
 
@@ -19,14 +21,20 @@ const mocks = vi.hoisted(() => {
     unassignTask = mockUnassignTask;
   }
 
+  class MockSessionRepository {
+    getOrCreateSession = mockGetOrCreateSession;
+  }
+
   return {
-    mockSessionCreate,
-    mockSessionRemove,
+    mockInstanceCreate,
+    mockInstanceRemove,
     mockSendMessage,
     mockAssignTask,
     mockUnassignTask,
-    MockSessionManager,
+    mockGetOrCreateSession,
+    MockAgentInstanceManager,
     MockTaskManager,
+    MockSessionRepository,
   };
 });
 
@@ -36,13 +44,24 @@ vi.mock("../../templates/index.js", () => ({
 }));
 
 describe("ImplementorAgent", () => {
-  let mockSessionManager: any;
+  let mockAgentInstanceManager: any;
   let mockTaskManager: any;
+  let mockSessionRepository: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSessionManager = new mocks.MockSessionManager();
+    mockAgentInstanceManager = new mocks.MockAgentInstanceManager();
     mockTaskManager = new mocks.MockTaskManager();
+    mockSessionRepository = new mocks.MockSessionRepository();
+    
+    // Default mock for getOrCreateSession
+    mocks.mockGetOrCreateSession.mockReturnValue({
+      taskId: "task-1",
+      agentType: AgentType.IMPLEMENTOR,
+      version: 1,
+      filename: "implementor-1",
+      filePath: "/test/sessions/task-1/implementor-1.json",
+    });
   });
 
   afterEach(() => {
@@ -50,15 +69,15 @@ describe("ImplementorAgent", () => {
   });
 
   describe("start", () => {
-    it("should create session with implementor system prompt", async () => {
-      const mockSession = {
-        sessionId: "session-1",
+    it("should get or create session from repository", async () => {
+      const mockInstance = {
+        instanceId: "instance-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
         status: "running" as const,
       };
-      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockInstanceCreate.mockResolvedValue(mockInstance);
       mocks.mockAssignTask.mockResolvedValue(undefined);
       mocks.mockSendMessage.mockResolvedValue(undefined);
 
@@ -71,7 +90,8 @@ describe("ImplementorAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         taskManager: mockTaskManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
@@ -79,22 +99,18 @@ describe("ImplementorAgent", () => {
 
       await agent.start();
 
-      expect(mocks.mockSessionCreate).toHaveBeenCalledWith({
-        taskId: "task-1",
-        workingDirectory: "/test/worktrees/task-1",
-        systemPrompt: "implementor system prompt",
-      });
+      expect(mocks.mockGetOrCreateSession).toHaveBeenCalledWith("task-1", AgentType.IMPLEMENTOR);
     });
 
-    it("should assign task in dyson-swarm", async () => {
-      const mockSession = {
-        sessionId: "session-1",
+    it("should create agent instance with implementor system prompt and session file", async () => {
+      const mockInstance = {
+        instanceId: "instance-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
         status: "running" as const,
       };
-      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockInstanceCreate.mockResolvedValue(mockInstance);
       mocks.mockAssignTask.mockResolvedValue(undefined);
       mocks.mockSendMessage.mockResolvedValue(undefined);
 
@@ -107,7 +123,46 @@ describe("ImplementorAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
+        taskManager: mockTaskManager,
+        onComplete: vi.fn(),
+        onError: vi.fn(),
+      });
+
+      await agent.start();
+
+      expect(mocks.mockInstanceCreate).toHaveBeenCalledWith({
+        taskId: "task-1",
+        workingDirectory: "/test/worktrees/task-1",
+        systemPrompt: "implementor system prompt",
+        sessionFilePath: "/test/sessions/task-1/implementor-1.json",
+      });
+    });
+
+    it("should assign task in dyson-swarm", async () => {
+      const mockInstance = {
+        instanceId: "instance-1",
+        taskId: "task-1",
+        workingDirectory: "/test/worktrees/task-1",
+        createdAt: new Date(),
+        status: "running" as const,
+      };
+      mocks.mockInstanceCreate.mockResolvedValue(mockInstance);
+      mocks.mockAssignTask.mockResolvedValue(undefined);
+      mocks.mockSendMessage.mockResolvedValue(undefined);
+
+      const agent = createImplementorAgent({
+        taskId: "task-1",
+        dysonTask: {
+          id: "task-1",
+          frontmatter: { title: "Test Task" },
+          description: "Test description",
+          status: "open",
+        },
+        worktreePath: "/test/worktrees/task-1",
+        agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         taskManager: mockTaskManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
@@ -118,15 +173,15 @@ describe("ImplementorAgent", () => {
       expect(mocks.mockAssignTask).toHaveBeenCalledWith("task-1", "task-1-implementor");
     });
 
-    it("should send initial prompt after creating session", async () => {
-      const mockSession = {
-        sessionId: "session-1",
+    it("should send initial prompt after creating agent instance", async () => {
+      const mockInstance = {
+        instanceId: "instance-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
         status: "running" as const,
       };
-      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockInstanceCreate.mockResolvedValue(mockInstance);
       mocks.mockAssignTask.mockResolvedValue(undefined);
       mocks.mockSendMessage.mockResolvedValue(undefined);
 
@@ -139,7 +194,8 @@ describe("ImplementorAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         taskManager: mockTaskManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
@@ -148,14 +204,14 @@ describe("ImplementorAgent", () => {
       await agent.start();
 
       expect(mocks.mockSendMessage).toHaveBeenCalledWith(
-        "session-1",
+        "instance-1",
         "test prompt",
         "/test/worktrees/task-1"
       );
     });
 
-    it("should call onError if session creation fails", async () => {
-      mocks.mockSessionCreate.mockRejectedValue(new Error("Session creation failed"));
+    it("should call onError if agent instance creation fails", async () => {
+      mocks.mockInstanceCreate.mockRejectedValue(new Error("Agent instance creation failed"));
       const onErrorMock = vi.fn();
 
       const agent = createImplementorAgent({
@@ -167,7 +223,8 @@ describe("ImplementorAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         taskManager: mockTaskManager,
         onComplete: vi.fn(),
         onError: onErrorMock,
@@ -181,18 +238,18 @@ describe("ImplementorAgent", () => {
   });
 
   describe("stop", () => {
-    it("should remove session when stopped", async () => {
-      const mockSession = {
-        sessionId: "session-1",
+    it("should remove agent instance when stopped", async () => {
+      const mockInstance = {
+        instanceId: "instance-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
         status: "running" as const,
       };
-      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockInstanceCreate.mockResolvedValue(mockInstance);
       mocks.mockAssignTask.mockResolvedValue(undefined);
       mocks.mockSendMessage.mockResolvedValue(undefined);
-      mocks.mockSessionRemove.mockResolvedValue(undefined);
+      mocks.mockInstanceRemove.mockResolvedValue(undefined);
 
       const agent = createImplementorAgent({
         taskId: "task-1",
@@ -203,7 +260,8 @@ describe("ImplementorAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         taskManager: mockTaskManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
@@ -214,7 +272,7 @@ describe("ImplementorAgent", () => {
 
       await agent.stop();
 
-      expect(mocks.mockSessionRemove).toHaveBeenCalledWith("task-1");
+      expect(mocks.mockInstanceRemove).toHaveBeenCalledWith("task-1");
       expect(agent.isRunning()).toBe(false);
     });
 
@@ -228,7 +286,8 @@ describe("ImplementorAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         taskManager: mockTaskManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
@@ -238,19 +297,19 @@ describe("ImplementorAgent", () => {
     });
   });
 
-  describe("handleSessionIdle", () => {
-    it("should remove session and call onComplete", async () => {
-      const mockSession = {
-        sessionId: "session-1",
+  describe("handleAgentInstanceIdle", () => {
+    it("should remove agent instance and call onComplete", async () => {
+      const mockInstance = {
+        instanceId: "instance-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
         status: "running" as const,
       };
-      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockInstanceCreate.mockResolvedValue(mockInstance);
       mocks.mockAssignTask.mockResolvedValue(undefined);
       mocks.mockSendMessage.mockResolvedValue(undefined);
-      mocks.mockSessionRemove.mockResolvedValue(undefined);
+      mocks.mockInstanceRemove.mockResolvedValue(undefined);
       const onCompleteMock = vi.fn();
 
       const agent = createImplementorAgent({
@@ -262,7 +321,8 @@ describe("ImplementorAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         taskManager: mockTaskManager,
         onComplete: onCompleteMock,
         onError: vi.fn(),
@@ -270,9 +330,9 @@ describe("ImplementorAgent", () => {
 
       await agent.start();
 
-      await (agent as any).handleSessionIdle();
+      await (agent as any).handleAgentInstanceIdle();
 
-      expect(mocks.mockSessionRemove).toHaveBeenCalledWith("task-1");
+      expect(mocks.mockInstanceRemove).toHaveBeenCalledWith("task-1");
       expect(onCompleteMock).toHaveBeenCalledWith("task-1");
       expect(agent.isRunning()).toBe(false);
     });
@@ -289,7 +349,8 @@ describe("ImplementorAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         taskManager: mockTaskManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
@@ -299,14 +360,14 @@ describe("ImplementorAgent", () => {
     });
 
     it("should return true after start", async () => {
-      const mockSession = {
-        sessionId: "session-1",
+      const mockInstance = {
+        instanceId: "instance-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
         status: "running" as const,
       };
-      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockInstanceCreate.mockResolvedValue(mockInstance);
       mocks.mockAssignTask.mockResolvedValue(undefined);
       mocks.mockSendMessage.mockResolvedValue(undefined);
 
@@ -319,7 +380,8 @@ describe("ImplementorAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         taskManager: mockTaskManager,
         onComplete: vi.fn(),
         onError: vi.fn(),

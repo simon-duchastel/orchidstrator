@@ -1,15 +1,15 @@
 /**
- * Agent Session Interface
+ * Agent Instance Interface
  *
- * Exports types and interfaces for abstracting session management
+ * Exports types and interfaces for abstracting agent instance management
  * across different AI agent implementations.
  */
 
 export type {
-  AgentSession,
-  SessionIdleCallback,
-  CreateSessionOptions,
-  SessionManagerInterface,
+  AgentInstance,
+  AgentInstanceIdleCallback,
+  CreateAgentInstanceOptions,
+  AgentInstanceManager,
 } from "./types.js";
 
 // Pi implementation

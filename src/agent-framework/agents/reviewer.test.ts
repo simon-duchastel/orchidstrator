@@ -1,22 +1,30 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createReviewerAgent } from "./reviewer.js";
+import { AgentType } from "../session-repository.js";
 
 const mocks = vi.hoisted(() => {
-  const mockSessionCreate = vi.fn();
-  const mockSessionRemove = vi.fn();
+  const mockInstanceCreate = vi.fn();
+  const mockInstanceRemove = vi.fn();
   const mockSendMessage = vi.fn();
+  const mockGetOrCreateSession = vi.fn();
 
-  class MockSessionManager {
-    createSession = mockSessionCreate;
-    removeSession = mockSessionRemove;
+  class MockAgentInstanceManager {
+    createAgentInstance = mockInstanceCreate;
+    removeAgentInstance = mockInstanceRemove;
     sendMessage = mockSendMessage;
   }
 
+  class MockSessionRepository {
+    getOrCreateSession = mockGetOrCreateSession;
+  }
+
   return {
-    mockSessionCreate,
-    mockSessionRemove,
+    mockInstanceCreate,
+    mockInstanceRemove,
     mockSendMessage,
-    MockSessionManager,
+    mockGetOrCreateSession,
+    MockAgentInstanceManager,
+    MockSessionRepository,
   };
 });
 
@@ -26,11 +34,22 @@ vi.mock("../../templates/index.js", () => ({
 }));
 
 describe("ReviewerAgent", () => {
-  let mockSessionManager: any;
+  let mockAgentInstanceManager: any;
+  let mockSessionRepository: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSessionManager = new mocks.MockSessionManager();
+    mockAgentInstanceManager = new mocks.MockAgentInstanceManager();
+    mockSessionRepository = new mocks.MockSessionRepository();
+    
+    // Default mock for getOrCreateSession
+    mocks.mockGetOrCreateSession.mockReturnValue({
+      taskId: "task-1",
+      agentType: AgentType.REVIEWER,
+      version: 1,
+      filename: "reviewer-1",
+      filePath: "/test/sessions/task-1/reviewer-1.json",
+    });
   });
 
   afterEach(() => {
@@ -38,15 +57,15 @@ describe("ReviewerAgent", () => {
   });
 
   describe("start", () => {
-    it("should create session with reviewer system prompt", async () => {
-      const mockSession = {
-        sessionId: "session-1",
+    it("should get or create session from repository", async () => {
+      const mockInstance = {
+        instanceId: "instance-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
         status: "running" as const,
       };
-      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockInstanceCreate.mockResolvedValue(mockInstance);
       mocks.mockSendMessage.mockResolvedValue(undefined);
 
       const agent = createReviewerAgent({
@@ -58,29 +77,26 @@ describe("ReviewerAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
 
       await agent.start();
 
-      expect(mocks.mockSessionCreate).toHaveBeenCalledWith({
-        taskId: "task-1",
-        workingDirectory: "/test/worktrees/task-1",
-        systemPrompt: "reviewer system prompt",
-      });
+      expect(mocks.mockGetOrCreateSession).toHaveBeenCalledWith("task-1", AgentType.REVIEWER);
     });
 
-    it("should send initial prompt after creating session", async () => {
-      const mockSession = {
-        sessionId: "session-1",
+    it("should create agent instance with reviewer system prompt and session file", async () => {
+      const mockInstance = {
+        instanceId: "instance-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
         status: "running" as const,
       };
-      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockInstanceCreate.mockResolvedValue(mockInstance);
       mocks.mockSendMessage.mockResolvedValue(undefined);
 
       const agent = createReviewerAgent({
@@ -92,7 +108,44 @@ describe("ReviewerAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
+        onComplete: vi.fn(),
+        onError: vi.fn(),
+      });
+
+      await agent.start();
+
+      expect(mocks.mockInstanceCreate).toHaveBeenCalledWith({
+        taskId: "task-1",
+        workingDirectory: "/test/worktrees/task-1",
+        systemPrompt: "reviewer system prompt",
+        sessionFilePath: "/test/sessions/task-1/reviewer-1.json",
+      });
+    });
+
+    it("should send initial prompt after creating agent instance", async () => {
+      const mockInstance = {
+        instanceId: "instance-1",
+        taskId: "task-1",
+        workingDirectory: "/test/worktrees/task-1",
+        createdAt: new Date(),
+        status: "running" as const,
+      };
+      mocks.mockInstanceCreate.mockResolvedValue(mockInstance);
+      mocks.mockSendMessage.mockResolvedValue(undefined);
+
+      const agent = createReviewerAgent({
+        taskId: "task-1",
+        dysonTask: {
+          id: "task-1",
+          frontmatter: { title: "Test Task" },
+          description: "Test description",
+          status: "open",
+        },
+        worktreePath: "/test/worktrees/task-1",
+        agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
@@ -100,14 +153,14 @@ describe("ReviewerAgent", () => {
       await agent.start();
 
       expect(mocks.mockSendMessage).toHaveBeenCalledWith(
-        "session-1",
+        "instance-1",
         "test review prompt",
         "/test/worktrees/task-1"
       );
     });
 
-    it("should call onError if session creation fails", async () => {
-      mocks.mockSessionCreate.mockRejectedValue(new Error("Session creation failed"));
+    it("should call onError if agent instance creation fails", async () => {
+      mocks.mockInstanceCreate.mockRejectedValue(new Error("Agent instance creation failed"));
       const onErrorMock = vi.fn();
 
       const agent = createReviewerAgent({
@@ -119,7 +172,8 @@ describe("ReviewerAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         onComplete: vi.fn(),
         onError: onErrorMock,
       });
@@ -132,17 +186,17 @@ describe("ReviewerAgent", () => {
   });
 
   describe("stop", () => {
-    it("should remove session when stopped", async () => {
-      const mockSession = {
-        sessionId: "session-1",
+    it("should remove agent instance when stopped", async () => {
+      const mockInstance = {
+        instanceId: "instance-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
         status: "running" as const,
       };
-      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockInstanceCreate.mockResolvedValue(mockInstance);
       mocks.mockSendMessage.mockResolvedValue(undefined);
-      mocks.mockSessionRemove.mockResolvedValue(undefined);
+      mocks.mockInstanceRemove.mockResolvedValue(undefined);
 
       const agent = createReviewerAgent({
         taskId: "task-1",
@@ -153,7 +207,8 @@ describe("ReviewerAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
@@ -163,7 +218,7 @@ describe("ReviewerAgent", () => {
 
       await agent.stop();
 
-      expect(mocks.mockSessionRemove).toHaveBeenCalledWith("task-1");
+      expect(mocks.mockInstanceRemove).toHaveBeenCalledWith("task-1");
       expect(agent.isRunning()).toBe(false);
     });
 
@@ -177,7 +232,8 @@ describe("ReviewerAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
@@ -186,18 +242,18 @@ describe("ReviewerAgent", () => {
     });
   });
 
-  describe("handleSessionIdle", () => {
-    it("should remove session and call onComplete", async () => {
-      const mockSession = {
-        sessionId: "session-1",
+  describe("handleAgentInstanceIdle", () => {
+    it("should remove agent instance and call onComplete", async () => {
+      const mockInstance = {
+        instanceId: "instance-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
         status: "running" as const,
       };
-      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockInstanceCreate.mockResolvedValue(mockInstance);
       mocks.mockSendMessage.mockResolvedValue(undefined);
-      mocks.mockSessionRemove.mockResolvedValue(undefined);
+      mocks.mockInstanceRemove.mockResolvedValue(undefined);
       const onCompleteMock = vi.fn();
 
       const agent = createReviewerAgent({
@@ -209,16 +265,17 @@ describe("ReviewerAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         onComplete: onCompleteMock,
         onError: vi.fn(),
       });
 
       await agent.start();
 
-      await (agent as any).handleSessionIdle();
+      await (agent as any).handleAgentInstanceIdle();
 
-      expect(mocks.mockSessionRemove).toHaveBeenCalledWith("task-1");
+      expect(mocks.mockInstanceRemove).toHaveBeenCalledWith("task-1");
       expect(onCompleteMock).toHaveBeenCalledWith("task-1");
       expect(agent.isRunning()).toBe(false);
     });
@@ -235,7 +292,8 @@ describe("ReviewerAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
@@ -244,14 +302,14 @@ describe("ReviewerAgent", () => {
     });
 
     it("should return true after start", async () => {
-      const mockSession = {
-        sessionId: "session-1",
+      const mockInstance = {
+        instanceId: "instance-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
         status: "running" as const,
       };
-      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockInstanceCreate.mockResolvedValue(mockInstance);
       mocks.mockSendMessage.mockResolvedValue(undefined);
 
       const agent = createReviewerAgent({
@@ -263,7 +321,8 @@ describe("ReviewerAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
+        sessionRepository: mockSessionRepository,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });

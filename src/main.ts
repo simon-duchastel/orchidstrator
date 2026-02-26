@@ -27,17 +27,17 @@ async function main() {
   log.log(`[orchid] Starting daemon (PID: ${process.pid})`);
 
   try {
-    // Create Pi session manager
-    const sessionManager = new PiSessionAdapter({
-      sessionsDir: worktreesDir,
+    // Create Pi agent instance manager
+    const agentInstanceManager = new PiSessionAdapter({
+      instancesDir: worktreesDir,
     });
 
-    log.log("[orchid] Pi session manager initialized");
+    log.log("[orchid] Pi agent instance manager initialized");
 
     // Handle shutdown signals gracefully
     const shutdown = async (signal: string) => {
       log.log(`[orchid] Received ${signal}, shutting down...`);
-      await sessionManager.stopAllSessions();
+      await agentInstanceManager.stopAllAgentInstances();
       process.exit(0);
     };
 

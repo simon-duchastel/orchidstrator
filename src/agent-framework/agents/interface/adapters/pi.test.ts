@@ -29,12 +29,12 @@ import { existsSync, mkdirSync } from "node:fs";
 
 describe("PiSessionAdapter", () => {
   let adapter: PiSessionAdapter;
-  const testSessionsDir = "/test/sessions";
+  const testInstancesDir = "/test/instances";
 
   beforeEach(() => {
     vi.clearAllMocks();
     (existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    adapter = new PiSessionAdapter({ sessionsDir: testSessionsDir });
+    adapter = new PiSessionAdapter({ instancesDir: testInstancesDir });
   });
 
   afterEach(() => {
@@ -42,63 +42,63 @@ describe("PiSessionAdapter", () => {
   });
 
   describe("constructor", () => {
-    it("should create sessions directory if it does not exist", () => {
+    it("should create instances directory if it does not exist", () => {
       (existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
 
-      new PiSessionAdapter({ sessionsDir: testSessionsDir });
+      new PiSessionAdapter({ instancesDir: testInstancesDir });
 
-      expect(existsSync).toHaveBeenCalledWith(testSessionsDir);
-      expect(mkdirSync).toHaveBeenCalledWith(testSessionsDir, { recursive: true });
+      expect(existsSync).toHaveBeenCalledWith(testInstancesDir);
+      expect(mkdirSync).toHaveBeenCalledWith(testInstancesDir, { recursive: true });
     });
 
-    it("should not create sessions directory if it already exists", () => {
+    it("should not create instances directory if it already exists", () => {
       (existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
 
-      new PiSessionAdapter({ sessionsDir: testSessionsDir });
+      new PiSessionAdapter({ instancesDir: testInstancesDir });
 
-      expect(existsSync).toHaveBeenCalledWith(testSessionsDir);
+      expect(existsSync).toHaveBeenCalledWith(testInstancesDir);
       expect(mkdirSync).not.toHaveBeenCalled();
     });
   });
 
-  describe("createSession", () => {
-    it("should create a session successfully", async () => {
+  describe("createAgentInstance", () => {
+    it("should create an agent instance successfully", async () => {
       mockCreateAgentSession.mockResolvedValue({
         session: mockPiSession,
         extensionsResult: { extensions: [] },
       });
 
-      const session = await adapter.createSession({
+      const instance = await adapter.createAgentInstance({
         taskId: "task-1",
-        workingDirectory: "/test/sessions/task-1",
+        workingDirectory: "/test/instances/task-1",
         systemPrompt: "fake system prompt for test",
       });
 
-      expect(session.taskId).toBe("task-1");
-      expect(session.status).toBe("running");
-      expect(session.workingDirectory).toBe("/test/sessions/task-1");
-      expect(session.sessionId).toMatch(/^pi-task-1-\d+$/);
+      expect(instance.taskId).toBe("task-1");
+      expect(instance.status).toBe("running");
+      expect(instance.workingDirectory).toBe("/test/instances/task-1");
+      expect(instance.instanceId).toMatch(/^pi-task-1-\d+$/);
     });
 
-    it("should throw error if session already exists", async () => {
+    it("should throw error if agent instance already exists", async () => {
       mockCreateAgentSession.mockResolvedValue({
         session: mockPiSession,
         extensionsResult: { extensions: [] },
       });
 
-      await adapter.createSession({
+      await adapter.createAgentInstance({
         taskId: "task-1",
-        workingDirectory: "/test/sessions/task-1",
+        workingDirectory: "/test/instances/task-1",
         systemPrompt: "fake system prompt for test",
       });
 
       await expect(
-        adapter.createSession({
+        adapter.createAgentInstance({
           taskId: "task-1",
-          workingDirectory: "/test/sessions/task-1",
+          workingDirectory: "/test/instances/task-1",
           systemPrompt: "fake system prompt for test",
         })
-      ).rejects.toThrow("Session for task task-1 already exists");
+      ).rejects.toThrow("Agent instance for task task-1 already exists");
     });
 
     it("should create working directory if it does not exist", async () => {
@@ -108,25 +108,25 @@ describe("PiSessionAdapter", () => {
         extensionsResult: { extensions: [] },
       });
 
-      await adapter.createSession({
+      await adapter.createAgentInstance({
         taskId: "task-1",
-        workingDirectory: "/test/sessions/task-1",
+        workingDirectory: "/test/instances/task-1",
         systemPrompt: "fake system prompt for test",
       });
 
-      expect(mkdirSync).toHaveBeenCalledWith("/test/sessions/task-1", { recursive: true });
+      expect(mkdirSync).toHaveBeenCalledWith("/test/instances/task-1", { recursive: true });
     });
 
     it("should throw error if Pi SDK fails", async () => {
       mockCreateAgentSession.mockRejectedValue(new Error("SDK Error"));
 
       await expect(
-        adapter.createSession({
+        adapter.createAgentInstance({
           taskId: "task-1",
-          workingDirectory: "/test/sessions/task-1",
+          workingDirectory: "/test/instances/task-1",
           systemPrompt: "fake system prompt for test",
         })
-      ).rejects.toThrow("Failed to create Pi session for task task-1: SDK Error");
+      ).rejects.toThrow("Failed to create Pi agent instance for task task-1: SDK Error");
     });
 
     it("should subscribe to session events", async () => {
@@ -135,9 +135,9 @@ describe("PiSessionAdapter", () => {
         extensionsResult: { extensions: [] },
       });
 
-      await adapter.createSession({
+      await adapter.createAgentInstance({
         taskId: "task-1",
-        workingDirectory: "/test/sessions/task-1",
+        workingDirectory: "/test/instances/task-1",
         systemPrompt: "fake system prompt for test",
       });
 
@@ -145,72 +145,72 @@ describe("PiSessionAdapter", () => {
     });
   });
 
-  describe("getSession", () => {
-    it("should return session if it exists", async () => {
+  describe("getAgentInstance", () => {
+    it("should return agent instance if it exists", async () => {
       mockCreateAgentSession.mockResolvedValue({
         session: mockPiSession,
         extensionsResult: { extensions: [] },
       });
 
-      const createdSession = await adapter.createSession({
+      const createdInstance = await adapter.createAgentInstance({
         taskId: "task-1",
-        workingDirectory: "/test/sessions/task-1",
+        workingDirectory: "/test/instances/task-1",
         systemPrompt: "fake system prompt for test",
       });
 
-      const retrievedSession = await adapter.getSession("task-1");
+      const retrievedInstance = await adapter.getAgentInstance("task-1");
 
-      expect(retrievedSession).toEqual(createdSession);
+      expect(retrievedInstance).toEqual(createdInstance);
     });
 
-    it("should return undefined if session does not exist", async () => {
-      const session = await adapter.getSession("nonexistent-task");
+    it("should return undefined if agent instance does not exist", async () => {
+      const instance = await adapter.getAgentInstance("nonexistent-task");
 
-      expect(session).toBeUndefined();
+      expect(instance).toBeUndefined();
     });
   });
 
   describe("sendMessage", () => {
-    let createdSessionId: string;
+    let createdInstanceId: string;
 
     beforeEach(async () => {
       mockCreateAgentSession.mockResolvedValue({
         session: mockPiSession,
         extensionsResult: { extensions: [] },
       });
-      const session = await adapter.createSession({
+      const instance = await adapter.createAgentInstance({
         taskId: "task-1",
-        workingDirectory: "/test/sessions/task-1",
+        workingDirectory: "/test/instances/task-1",
         systemPrompt: "fake system prompt for test",
       });
-      createdSessionId = session.sessionId;
+      createdInstanceId = instance.instanceId;
     });
 
-    it("should send message to session", async () => {
-      await adapter.sendMessage(createdSessionId, "Hello Pi", "/test/sessions/task-1");
+    it("should send message to agent instance", async () => {
+      await adapter.sendMessage(createdInstanceId, "Hello Pi", "/test/instances/task-1");
 
       expect(mockPrompt).toHaveBeenCalledWith("Hello Pi");
     });
 
-    it("should throw error if session not found", async () => {
+    it("should throw error if agent instance not found", async () => {
       await expect(
-        adapter.sendMessage("nonexistent-session", "Hello", "/test/wd")
-      ).rejects.toThrow("Session nonexistent-session not found");
+        adapter.sendMessage("nonexistent-instance", "Hello", "/test/wd")
+      ).rejects.toThrow("Agent instance nonexistent-instance not found");
     });
 
     it("should throw error if prompt fails", async () => {
       mockPrompt.mockRejectedValue(new Error("Prompt Error"));
 
       await expect(
-        adapter.sendMessage(createdSessionId, "Hello", "/test/sessions/task-1")
-      ).rejects.toThrow("Failed to send message to Pi session");
+        adapter.sendMessage(createdInstanceId, "Hello", "/test/instances/task-1")
+      ).rejects.toThrow("Failed to send message to Pi agent instance");
     });
   });
 
-  describe("onSessionIdle", () => {
+  describe("onAgentInstanceIdle", () => {
     it("should register callback", async () => {
       const callback = vi.fn();
-      adapter.onSessionIdle(callback);
+      adapter.onAgentInstanceIdle(callback);
 
       // Get the event listener registered by subscribe
       let eventListener: ((event: { type: string }) => void) | undefined;
@@ -224,9 +224,9 @@ describe("PiSessionAdapter", () => {
         extensionsResult: { extensions: [] },
       });
 
-      await adapter.createSession({
+      await adapter.createAgentInstance({
         taskId: "task-1",
-        workingDirectory: "/test/sessions/task-1",
+        workingDirectory: "/test/instances/task-1",
         systemPrompt: "fake system prompt for test",
       });
 
@@ -243,7 +243,7 @@ describe("PiSessionAdapter", () => {
 
     it("should trigger on turn_end event", async () => {
       const callback = vi.fn();
-      adapter.onSessionIdle(callback);
+      adapter.onAgentInstanceIdle(callback);
 
       let eventListener: ((event: { type: string }) => void) | undefined;
       mockSubscribe.mockImplementation((listener: (event: { type: string }) => void) => {
@@ -256,9 +256,9 @@ describe("PiSessionAdapter", () => {
         extensionsResult: { extensions: [] },
       });
 
-      await adapter.createSession({
+      await adapter.createAgentInstance({
         taskId: "task-1",
-        workingDirectory: "/test/sessions/task-1",
+        workingDirectory: "/test/instances/task-1",
         systemPrompt: "fake system prompt for test",
       });
 
@@ -273,8 +273,8 @@ describe("PiSessionAdapter", () => {
     it("should call all registered callbacks", async () => {
       const callback1 = vi.fn();
       const callback2 = vi.fn();
-      adapter.onSessionIdle(callback1);
-      adapter.onSessionIdle(callback2);
+      adapter.onAgentInstanceIdle(callback1);
+      adapter.onAgentInstanceIdle(callback2);
 
       let eventListener: ((event: { type: string }) => void) | undefined;
       mockSubscribe.mockImplementation((listener: (event: { type: string }) => void) => {
@@ -287,9 +287,9 @@ describe("PiSessionAdapter", () => {
         extensionsResult: { extensions: [] },
       });
 
-      await adapter.createSession({
+      await adapter.createAgentInstance({
         taskId: "task-1",
-        workingDirectory: "/test/sessions/task-1",
+        workingDirectory: "/test/instances/task-1",
         systemPrompt: "fake system prompt for test",
       });
 
@@ -306,8 +306,8 @@ describe("PiSessionAdapter", () => {
         throw new Error("Callback error");
       });
       const callback2 = vi.fn();
-      adapter.onSessionIdle(callback1);
-      adapter.onSessionIdle(callback2);
+      adapter.onAgentInstanceIdle(callback1);
+      adapter.onAgentInstanceIdle(callback2);
 
       let eventListener: ((event: { type: string }) => void) | undefined;
       mockSubscribe.mockImplementation((listener: (event: { type: string }) => void) => {
@@ -320,9 +320,9 @@ describe("PiSessionAdapter", () => {
         extensionsResult: { extensions: [] },
       });
 
-      await adapter.createSession({
+      await adapter.createAgentInstance({
         taskId: "task-1",
-        workingDirectory: "/test/sessions/task-1",
+        workingDirectory: "/test/instances/task-1",
         systemPrompt: "fake system prompt for test",
       });
 
