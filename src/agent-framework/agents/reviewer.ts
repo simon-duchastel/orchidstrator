@@ -76,6 +76,7 @@ export class ReviewerAgentImpl implements ReviewerAgent {
         workingDirectory: this.worktreePath,
         systemPrompt: getReviewerSystemPrompt(),
         sessionFilePath: session.filePath,
+        model: { provider: "synthetic", modelId: "kimi-2.5" },
       });
       log.log(`[reviewer] Created agent instance ${this.agentInstance.instanceId} for task ${this.taskId}`);
       

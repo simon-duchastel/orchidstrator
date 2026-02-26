@@ -72,6 +72,7 @@ describe("PiSessionAdapter", () => {
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
         systemPrompt: "fake system prompt for test",
+        model: { provider: "synthetic", modelId: "kimi-2.5" },
       });
 
       expect(session.taskId).toBe("task-1");
@@ -90,6 +91,7 @@ describe("PiSessionAdapter", () => {
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
         systemPrompt: "fake system prompt for test",
+        model: { provider: "synthetic", modelId: "kimi-2.5" },
       });
 
       await expect(
@@ -97,6 +99,7 @@ describe("PiSessionAdapter", () => {
           taskId: "task-1",
           workingDirectory: "/test/sessions/task-1",
           systemPrompt: "fake system prompt for test",
+          model: { provider: "synthetic", modelId: "kimi-2.5" },
         })
       ).rejects.toThrow("Agent instance for task task-1 already exists");
     });
@@ -112,6 +115,7 @@ describe("PiSessionAdapter", () => {
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
         systemPrompt: "fake system prompt for test",
+        model: { provider: "synthetic", modelId: "kimi-2.5" },
       });
 
       expect(mkdirSync).toHaveBeenCalledWith("/test/sessions/task-1", { recursive: true });
@@ -125,6 +129,7 @@ describe("PiSessionAdapter", () => {
           taskId: "task-1",
           workingDirectory: "/test/sessions/task-1",
           systemPrompt: "fake system prompt for test",
+          model: { provider: "synthetic", modelId: "kimi-2.5" },
         })
       ).rejects.toThrow("Failed to create Pi agent instance for task task-1: SDK Error");
     });
@@ -139,6 +144,7 @@ describe("PiSessionAdapter", () => {
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
         systemPrompt: "fake system prompt for test",
+        model: { provider: "synthetic", modelId: "kimi-2.5" },
       });
 
       expect(mockSubscribe).toHaveBeenCalled();
@@ -156,6 +162,7 @@ describe("PiSessionAdapter", () => {
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
         systemPrompt: "fake system prompt for test",
+        model: { provider: "synthetic", modelId: "kimi-2.5" },
       });
 
       const retrievedInstance = await adapter.getAgentInstance("task-1");
@@ -182,6 +189,7 @@ describe("PiSessionAdapter", () => {
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
         systemPrompt: "fake system prompt for test",
+        model: { provider: "synthetic", modelId: "kimi-2.5" },
       });
       createdInstanceId = instance.instanceId;
     });
@@ -228,6 +236,7 @@ describe("PiSessionAdapter", () => {
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
         systemPrompt: "fake system prompt for test",
+        model: { provider: "synthetic", modelId: "kimi-2.5" },
       });
 
       // Simulate message_end event
@@ -260,6 +269,7 @@ describe("PiSessionAdapter", () => {
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
         systemPrompt: "fake system prompt for test",
+        model: { provider: "synthetic", modelId: "kimi-2.5" },
       });
 
       // Simulate turn_end event
@@ -291,6 +301,7 @@ describe("PiSessionAdapter", () => {
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
         systemPrompt: "fake system prompt for test",
+        model: { provider: "synthetic", modelId: "kimi-2.5" },
       });
 
       if (eventListener) {
@@ -324,6 +335,7 @@ describe("PiSessionAdapter", () => {
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
         systemPrompt: "fake system prompt for test",
+        model: { provider: "synthetic", modelId: "kimi-2.5" },
       });
 
       if (eventListener) {

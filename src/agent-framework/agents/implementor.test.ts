@@ -100,6 +100,7 @@ describe("ImplementorAgent", () => {
         workingDirectory: "/test/worktrees/task-1",
         systemPrompt: "implementor system prompt",
         sessionFilePath: "/test/.orchid/sessions/task-1/implementor-1.json",
+        model: { provider: "synthetic", modelId: "kimi-2.5" },
       });
     });
 

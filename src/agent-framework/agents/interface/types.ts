@@ -36,6 +36,11 @@ export interface CreateAgentInstanceOptions {
   workingDirectory: string;
   /** System prompt to override the default */
   systemPrompt: string;
+  /** Model configuration for the agent instance */
+  model: {
+    provider: string;
+    modelId: string;
+  };
   /** Optional path to session file for resuming/attaching to existing session */
   sessionFilePath?: string;
 }

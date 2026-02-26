@@ -86,6 +86,7 @@ describe("ReviewerAgent", () => {
         workingDirectory: "/test/worktrees/task-1",
         systemPrompt: "reviewer system prompt",
         sessionFilePath: "/test/.orchid/sessions/task-1/reviewer-1.json",
+        model: { provider: "synthetic", modelId: "kimi-2.5" },
       });
     });
 

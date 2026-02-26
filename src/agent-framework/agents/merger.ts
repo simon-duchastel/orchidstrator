@@ -71,6 +71,7 @@ export class MergerAgentImpl implements MergerAgent {
         workingDirectory: this.worktreePath,
         systemPrompt: getMergerSystemPrompt(),
         sessionFilePath: session.filePath,
+        model: { provider: "synthetic", modelId: "kimi-2.5" },
       });
       log.log(`[merger] Created agent instance ${this.agentInstance.instanceId} for task ${this.taskId}`);
 
