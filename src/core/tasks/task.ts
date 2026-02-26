@@ -38,7 +38,6 @@ export interface TaskStateData {
   reviewerAgentId?: string;
   mergerAgentId?: string;
   worktreePath?: string;
-  sessionId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -61,7 +60,6 @@ export class Task {
   private _reviewerAgentId?: string;
   private _mergerAgentId?: string;
   private _worktreePath?: string;
-  private _sessionId?: string;
   readonly createdAt: Date;
   private _updatedAt: Date;
 
@@ -107,13 +105,6 @@ export class Task {
    */
   get worktreePath(): string | undefined {
     return this._worktreePath;
-  }
-
-  /**
-   * Get session ID
-   */
-  get sessionId(): string | undefined {
-    return this._sessionId;
   }
 
   /**
@@ -270,14 +261,6 @@ export class Task {
   }
 
   /**
-   * Set the session ID
-   */
-  setSessionId(sessionId: string): void {
-    this._sessionId = sessionId;
-    this._updateTimestamp();
-  }
-
-  /**
    * Get serializable state data
    */
   toJSON(): TaskStateData {
@@ -289,7 +272,6 @@ export class Task {
       reviewerAgentId: this._reviewerAgentId,
       mergerAgentId: this._mergerAgentId,
       worktreePath: this._worktreePath,
-      sessionId: this._sessionId,
       createdAt: this.createdAt,
       updatedAt: this._updatedAt,
     };

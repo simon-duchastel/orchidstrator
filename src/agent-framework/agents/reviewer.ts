@@ -2,24 +2,26 @@
  * Reviewer Agent
  *
  * Handles the review phase of a task.
- * Sends initial prompt to an existing session in a pre-created worktree.
+ * Creates and manages its own session with the reviewer system prompt.
  * Reports back to orchestrator when complete.
- * Worktree and session are managed by the orchestrator.
+ * Worktree is managed by the orchestrator.
  */
 
 import { type Task as DysonTask } from "dyson-swarm";
 import { type AgentSession } from "./interface/types.js";
 import type { SessionManagerInterface } from "./interface/index.js";
-import { fillReviewerPromptTemplate } from "../../templates/index.js";
+import { 
+  fillReviewerPromptTemplate,
+  getReviewerSystemPrompt 
+} from "../../templates/index.js";
 import { log } from "../../core/logging/index.js";
 
 export interface ReviewerAgentOptions {
   taskId: string;
   dysonTask: DysonTask;
   worktreePath: string;
-  session: AgentSession;
   sessionManager: SessionManagerInterface;
-  onComplete: (taskId: string, session: AgentSession) => void;
+  onComplete: (taskId: string) => void;
   onError: (taskId: string, error: Error) => void;
 }
 
@@ -34,16 +36,16 @@ export interface ReviewerAgent {
 /**
  * ReviewerAgent handles the review phase of a task.
  * Created per-task and destroyed when review is complete.
- * Worktree and session are provided by the orchestrator.
+ * Worktree is provided by the orchestrator, but session is managed by the agent.
  */
 export class ReviewerAgentImpl implements ReviewerAgent {
   readonly agentId: string;
   readonly taskId: string;
   private dysonTask: DysonTask;
   private worktreePath: string;
-  private session: AgentSession;
+  private session: AgentSession | undefined;
   private sessionManager: SessionManagerInterface;
-  private onComplete: (taskId: string, session: AgentSession) => void;
+  private onComplete: (taskId: string) => void;
   private onError: (taskId: string, error: Error) => void;
   private _isRunning = false;
 
@@ -52,7 +54,6 @@ export class ReviewerAgentImpl implements ReviewerAgent {
     this.agentId = `${options.taskId}-reviewer`;
     this.dysonTask = options.dysonTask;
     this.worktreePath = options.worktreePath;
-    this.session = options.session;
     this.sessionManager = options.sessionManager;
     this.onComplete = options.onComplete;
     this.onError = options.onError;
@@ -60,7 +61,7 @@ export class ReviewerAgentImpl implements ReviewerAgent {
 
   /**
    * Start the reviewer agent.
-   * Sends initial prompt to begin the review.
+   * Creates its own session with reviewer system prompt, then sends initial prompt.
    */
   async start(): Promise<void> {
     if (this._isRunning) {
@@ -72,6 +73,14 @@ export class ReviewerAgentImpl implements ReviewerAgent {
     log.log(`[reviewer] Starting agent ${this.agentId} for task ${this.taskId}`);
 
     try {
+      // Create session with reviewer system prompt
+      this.session = await this.sessionManager.createSession({
+        taskId: this.taskId,
+        workingDirectory: this.worktreePath,
+        systemPrompt: getReviewerSystemPrompt(),
+      });
+      log.log(`[reviewer] Created session ${this.session.sessionId} for task ${this.taskId}`);
+      
       // Send initial prompt
       await this.sendInitialPrompt();
       
@@ -85,7 +94,7 @@ export class ReviewerAgentImpl implements ReviewerAgent {
 
   /**
    * Stop the reviewer agent.
-   * Note: Session and worktree cleanup are handled by the orchestrator.
+   * Cleans up its own session.
    */
   async stop(): Promise<void> {
     if (!this._isRunning) {
@@ -94,6 +103,18 @@ export class ReviewerAgentImpl implements ReviewerAgent {
 
     log.log(`[reviewer] Stopping agent ${this.agentId}`);
     this._isRunning = false;
+    
+    // Clean up session if it exists
+    if (this.session) {
+      try {
+        await this.sessionManager.removeSession(this.taskId);
+        log.log(`[reviewer] Removed session for task ${this.taskId}`);
+      } catch (error) {
+        log.error(`[reviewer] Failed to remove session for task ${this.taskId}:`, error);
+      }
+      this.session = undefined;
+    }
+    
     log.log(`[reviewer] Agent ${this.agentId} stopped`);
   }
 
@@ -115,15 +136,33 @@ export class ReviewerAgentImpl implements ReviewerAgent {
    * Handle session idle event - called by orchestrator when session becomes idle
    */
   async handleSessionIdle(): Promise<void> {
+    if (!this.session) {
+      log.error(`[reviewer] No session available for task ${this.taskId}`);
+      return;
+    }
+    
     log.log(`[reviewer] Session ${this.session.sessionId} became idle for task ${this.taskId}`);
     
     this._isRunning = false;
     
+    // Clean up session
+    try {
+      await this.sessionManager.removeSession(this.taskId);
+      log.log(`[reviewer] Removed session for task ${this.taskId}`);
+    } catch (error) {
+      log.error(`[reviewer] Failed to remove session for task ${this.taskId}:`, error);
+    }
+    this.session = undefined;
+    
     // Notify completion
-    this.onComplete(this.taskId, this.session);
+    this.onComplete(this.taskId);
   }
 
   private async sendInitialPrompt(): Promise<void> {
+    if (!this.session) {
+      throw new Error("Session not available");
+    }
+    
     try {
       const promptMessage = fillReviewerPromptTemplate({
         taskTitle: this.dysonTask.frontmatter.title || "",

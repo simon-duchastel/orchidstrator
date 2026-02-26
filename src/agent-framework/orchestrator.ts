@@ -13,13 +13,11 @@
 import { TaskManager, type Task as DysonTask } from "dyson-swarm";
 import { WorktreeManager } from "../core/git/worktrees/index.js";
 import { getWorktreesDir } from "../config/paths.js";
-import { type AgentSession } from "./agents/interface/types.js";
 import type { SessionManagerInterface } from "./agents/interface/index.js";
 import { Task, TaskState, createTaskFromDyson } from "../core/tasks/index.js";
 import { createImplementorAgent, type ImplementorAgent } from "./agents/implementor.js";
 import { createReviewerAgent, type ReviewerAgent } from "./agents/reviewer.js";
 import { createMergerAgent, type MergerAgent } from "./agents/merger.js";
-import { getImplementorSystemPrompt } from "../templates/index.js";
 import { log } from "../core/logging/index.js";
 
 export interface AgentInfo {
@@ -28,7 +26,6 @@ export interface AgentInfo {
   startedAt: Date;
   state: TaskState;
   worktreePath: string;
-  sessionId?: string;
 }
 
 export interface AgentOrchestratorOptions {
@@ -220,7 +217,7 @@ export class AgentOrchestrator {
 
   /**
    * Create an implementor agent for a task.
-   * Creates worktree and session first, then assigns the implementor agent.
+   * Creates worktree, then creates the implementor agent.
    */
   private async createImplementor(task: Task): Promise<void> {
     const agentId = `${task.taskId}-implementor`;
@@ -235,24 +232,13 @@ export class AgentOrchestrator {
       await this.worktreeManager.create(worktreePath, "HEAD", { detach: true });
       log.log(`[orchestrator] Created worktree at ${worktreePath} for task ${task.taskId}`);
 
-      // Create session with implementor system prompt
-      const session = await this.sessionManager.createSession({
-        taskId: task.taskId,
-        workingDirectory: worktreePath,
-        systemPrompt: getImplementorSystemPrompt(),
-      });
-      log.log(`[orchestrator] Created session ${session.sessionId} for task ${task.taskId}`);
-      task.setSessionId(session.sessionId);
-
-      // Create implementor agent
       const implementor = createImplementorAgent({
         taskId: task.taskId,
         dysonTask: task.dysonTask,
         worktreePath: worktreePath,
-        session: session,
         sessionManager: this.sessionManager,
         taskManager: this.taskManager,
-        onComplete: (taskId: string, _session: AgentSession) => {
+        onComplete: (taskId: string) => {
           this.handleImplementationComplete(taskId);
         },
         onError: (taskId: string, error: Error) => {
@@ -262,7 +248,7 @@ export class AgentOrchestrator {
 
       this.implementors.set(task.taskId, implementor);
 
-      // Start the implementor
+      // Start the implementor - this creates its session
       await implementor.start();
 
       log.log(`[orchestrator] Implementor ${agentId} started for task ${task.taskId}`);
@@ -274,7 +260,7 @@ export class AgentOrchestrator {
 
   /**
    * Create a reviewer agent for a task.
-   * Uses existing worktree and session from the implementor.
+   * Uses existing worktree, agent creates its own session.
    */
   private async createReviewer(task: Task): Promise<void> {
     const agentId = `${task.taskId}-reviewer`;
@@ -284,29 +270,22 @@ export class AgentOrchestrator {
       // Transition task state
       task.assignReviewer(agentId);
 
-      // Get existing worktree and session from the task
+      // Get existing worktree from the task
       const worktreePath = task.worktreePath;
       
       if (!worktreePath) {
         throw new Error(`Task ${task.taskId} missing worktree for review`);
       }
 
-      // Get the existing session using taskId (sessionManager uses taskId as key)
-      const session = await this.sessionManager.getSession(task.taskId);
-      if (!session) {
-        throw new Error(`Session not found for task ${task.taskId}`);
-      }
+      log.log(`[orchestrator] Using existing worktree at ${worktreePath}`);
 
-      log.log(`[orchestrator] Using existing worktree at ${worktreePath} and session ${session.sessionId}`);
-
-      // Create reviewer agent
+      // Create reviewer agent - agent manages its own session
       const reviewer = createReviewerAgent({
         taskId: task.taskId,
         dysonTask: task.dysonTask,
         worktreePath: worktreePath,
-        session: session,
         sessionManager: this.sessionManager,
-        onComplete: (taskId: string, _session: AgentSession) => {
+        onComplete: (taskId: string) => {
           this.handleReviewComplete(taskId);
         },
         onError: (taskId: string, error: Error) => {
@@ -316,7 +295,7 @@ export class AgentOrchestrator {
 
       this.reviewers.set(task.taskId, reviewer);
 
-      // Start the reviewer
+      // Start the reviewer - this creates its session
       await reviewer.start();
 
       log.log(`[orchestrator] Reviewer ${agentId} started for task ${task.taskId}`);
@@ -328,7 +307,7 @@ export class AgentOrchestrator {
 
   /**
    * Create a merger agent for a task.
-   * Uses existing worktree and session.
+   * Uses existing worktree, agent creates its own session.
    */
   private async createMerger(task: Task): Promise<void> {
     const agentId = `${task.taskId}-merger`;
@@ -338,28 +317,21 @@ export class AgentOrchestrator {
       // Transition task state
       task.assignMerger(agentId);
 
-      // Get existing worktree and session from the task
+      // Get existing worktree from the task
       const worktreePath = task.worktreePath;
       
       if (!worktreePath) {
         throw new Error(`Task ${task.taskId} missing worktree for merge`);
       }
 
-      // Get the existing session using taskId (sessionManager uses taskId as key)
-      const session = await this.sessionManager.getSession(task.taskId);
-      if (!session) {
-        throw new Error(`Session not found for task ${task.taskId}`);
-      }
+      log.log(`[orchestrator] Using existing worktree at ${worktreePath}`);
 
-      log.log(`[orchestrator] Using existing worktree at ${worktreePath} and session ${session.sessionId}`);
-
-      // Create merger agent
+      // Create merger agent - agent manages its own session
       const merger = createMergerAgent({
         taskId: task.taskId,
         worktreePath: worktreePath,
-        session: session,
         sessionManager: this.sessionManager,
-        onComplete: (taskId: string, _session: AgentSession) => {
+        onComplete: (taskId: string) => {
           this.handleMergeComplete(taskId);
         },
         onError: (taskId: string, error: Error) => {
@@ -369,7 +341,7 @@ export class AgentOrchestrator {
 
       this.mergers.set(task.taskId, merger);
 
-      // Start the merger
+      // Start the merger - this creates its session
       await merger.start();
 
       log.log(`[orchestrator] Merger ${agentId} started for task ${task.taskId}`);
@@ -576,7 +548,6 @@ export class AgentOrchestrator {
         startedAt: task.createdAt,
         state: task.state,
         worktreePath,
-        sessionId: task.sessionId,
       };
       
       // Add implementor if present

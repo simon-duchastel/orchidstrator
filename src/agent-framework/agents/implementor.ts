@@ -2,26 +2,27 @@
  * Implementor Agent
  *
  * Handles the implementation phase of a task.
- * Sends initial prompt to an existing session in a pre-created worktree.
+ * Creates and manages its own session with the implementor system prompt.
  * Reports back to orchestrator when complete.
- * Worktree and session are managed by the orchestrator.
+ * Worktree is managed by the orchestrator.
  */
 
 import { TaskManager, type Task as DysonTask } from "dyson-swarm";
 import { type AgentSession } from "./interface/types.js";
 import type { SessionManagerInterface } from "./interface/index.js";
-import { fillImplementorAgentPromptTemplate } from "../../templates/index.js";
+import { 
+  fillImplementorAgentPromptTemplate, 
+  getImplementorSystemPrompt 
+} from "../../templates/index.js";
 import { log } from "../../core/logging/index.js";
-import type { Task } from "../../core/tasks/index.js";
 
 export interface ImplementorAgentOptions {
   taskId: string;
   dysonTask: DysonTask;
   worktreePath: string;
-  session: AgentSession;
   sessionManager: SessionManagerInterface;
   taskManager: TaskManager;
-  onComplete: (taskId: string, session: AgentSession) => void;
+  onComplete: (taskId: string) => void;
   onError: (taskId: string, error: Error) => void;
 }
 
@@ -36,17 +37,17 @@ export interface ImplementorAgent {
 /**
  * ImplementorAgent handles the implementation phase of a task.
  * Created per-task and destroyed when implementation is complete.
- * Worktree and session are provided by the orchestrator.
+ * Worktree is provided by the orchestrator, but session is managed by the agent.
  */
 export class ImplementorAgentImpl implements ImplementorAgent {
   readonly agentId: string;
   readonly taskId: string;
   private dysonTask: DysonTask;
   private worktreePath: string;
-  private session: AgentSession;
+  private session: AgentSession | undefined;
   private sessionManager: SessionManagerInterface;
   private taskManager: TaskManager;
-  private onComplete: (taskId: string, session: AgentSession) => void;
+  private onComplete: (taskId: string) => void;
   private onError: (taskId: string, error: Error) => void;
   private _isRunning = false;
 
@@ -55,7 +56,6 @@ export class ImplementorAgentImpl implements ImplementorAgent {
     this.agentId = `${options.taskId}-implementor`;
     this.dysonTask = options.dysonTask;
     this.worktreePath = options.worktreePath;
-    this.session = options.session;
     this.sessionManager = options.sessionManager;
     this.taskManager = options.taskManager;
     this.onComplete = options.onComplete;
@@ -64,7 +64,7 @@ export class ImplementorAgentImpl implements ImplementorAgent {
 
   /**
    * Start the implementor agent.
-   * Assigns task first, then sends initial prompt.
+   * Creates its own session with implementor system prompt, assigns task, then sends initial prompt.
    */
   async start(): Promise<void> {
     if (this._isRunning) {
@@ -76,6 +76,14 @@ export class ImplementorAgentImpl implements ImplementorAgent {
     log.log(`[implementor] Starting agent ${this.agentId} for task ${this.taskId}`);
 
     try {
+      // Create session with implementor system prompt
+      this.session = await this.sessionManager.createSession({
+        taskId: this.taskId,
+        workingDirectory: this.worktreePath,
+        systemPrompt: getImplementorSystemPrompt(),
+      });
+      log.log(`[implementor] Created session ${this.session.sessionId} for task ${this.taskId}`);
+      
       // Assign task in dyson-swarm first to prevent conflicts
       await this.assignTask();
       
@@ -93,7 +101,7 @@ export class ImplementorAgentImpl implements ImplementorAgent {
 
   /**
    * Stop the implementor agent.
-   * Note: Session and worktree cleanup are handled by the orchestrator.
+   * Cleans up its own session.
    */
   async stop(): Promise<void> {
     if (!this._isRunning) {
@@ -102,6 +110,18 @@ export class ImplementorAgentImpl implements ImplementorAgent {
 
     log.log(`[implementor] Stopping agent ${this.agentId}`);
     this._isRunning = false;
+    
+    // Clean up session if it exists
+    if (this.session) {
+      try {
+        await this.sessionManager.removeSession(this.taskId);
+        log.log(`[implementor] Removed session for task ${this.taskId}`);
+      } catch (error) {
+        log.error(`[implementor] Failed to remove session for task ${this.taskId}:`, error);
+      }
+      this.session = undefined;
+    }
+    
     log.log(`[implementor] Agent ${this.agentId} stopped`);
   }
 
@@ -123,15 +143,33 @@ export class ImplementorAgentImpl implements ImplementorAgent {
    * Handle session idle event - called by orchestrator when session becomes idle
    */
   async handleSessionIdle(): Promise<void> {
+    if (!this.session) {
+      log.error(`[implementor] No session available for task ${this.taskId}`);
+      return;
+    }
+    
     log.log(`[implementor] Session ${this.session.sessionId} became idle for task ${this.taskId}`);
     
     this._isRunning = false;
     
+    // Clean up session
+    try {
+      await this.sessionManager.removeSession(this.taskId);
+      log.log(`[implementor] Removed session for task ${this.taskId}`);
+    } catch (error) {
+      log.error(`[implementor] Failed to remove session for task ${this.taskId}:`, error);
+    }
+    this.session = undefined;
+    
     // Notify completion
-    this.onComplete(this.taskId, this.session);
+    this.onComplete(this.taskId);
   }
 
   private async sendInitialPrompt(): Promise<void> {
+    if (!this.session) {
+      throw new Error("Session not available");
+    }
+    
     try {
       const promptMessage = fillImplementorAgentPromptTemplate({
         taskTitle: this.dysonTask.frontmatter.title || "",

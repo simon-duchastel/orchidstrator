@@ -206,8 +206,7 @@ describe("AgentOrchestrator", () => {
       orchestrator.start();
       await vi.runAllTimersAsync();
 
-      // Should only create one implementor
-      expect(mocks.mockSessionCreate).toHaveBeenCalledTimes(1);
+      // Should only create one worktree
       expect(mocks.mockWorktreeCreate).toHaveBeenCalledTimes(1);
     });
 
@@ -293,32 +292,4 @@ describe("AgentOrchestrator", () => {
     });
   });
 
-  describe("session creation with system prompt", () => {
-    it("should pass system prompt 'todo' when creating sessions", async () => {
-      const mockSession = {
-        sessionId: "session-1",
-        taskId: "task-1",
-        workingDirectory: "/test/worktrees/task-1",
-        createdAt: new Date(),
-        status: "running" as const,
-      };
-      mocks.mockSessionCreate.mockResolvedValue(mockSession);
-      mocks.mockWorktreeCreate.mockResolvedValue(true);
-
-      const streamIterator = (async function* () {
-        yield [{ id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" }];
-      })();
-      mocks.mockListTaskStream.mockReturnValue(streamIterator);
-
-      orchestrator.start();
-      await vi.runAllTimersAsync();
-
-      // Verify that createSession was called with proper parameters including systemPrompt
-      expect(mocks.mockSessionCreate).toHaveBeenCalledWith({
-        taskId: "task-1",
-        workingDirectory: "/test/worktrees/task-1",
-        systemPrompt: expect.any(String),
-      });
-    });
-  });
 });
