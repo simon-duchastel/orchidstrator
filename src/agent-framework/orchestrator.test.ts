@@ -23,13 +23,13 @@ const mocks = vi.hoisted(() => {
     unassignTask = mockUnassignTask;
   }
   
-  class MockSessionManager {
-    createSession = mockSessionCreate;
-    removeSession = mockSessionRemove;
-    stopAllSessions = mockSessionStopAll;
+  class MockAgentInstanceManager {
+    createAgentInstance = mockSessionCreate;
+    removeAgentInstance = mockSessionRemove;
+    stopAllAgentInstances = mockSessionStopAll;
     sendMessage = mockSendMessage;
-    getSession = mockGetSession;
-    onSessionIdle = vi.fn();
+    getAgentInstance = mockGetSession;
+    onAgentInstanceIdle = vi.fn();
   }
   
   return {
@@ -46,7 +46,7 @@ const mocks = vi.hoisted(() => {
     mockGetSession,
     mockGlobalEvent,
     MockTaskManager,
-    MockSessionManager,
+    MockAgentInstanceManager,
   };
 });
 
@@ -72,7 +72,7 @@ vi.mock("../config/paths.js", () => ({
 describe("AgentOrchestrator", () => {
   let orchestrator: AgentOrchestrator;
   let mockWorktreeManager: any;
-  let mockSessionManager: any;
+  let mockAgentInstanceManager: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -85,13 +85,13 @@ describe("AgentOrchestrator", () => {
       getWorktreePath: vi.fn(),
       isWorktree: vi.fn(),
     };
-    mockSessionManager = {
-      createSession: mocks.mockSessionCreate,
-      removeSession: mocks.mockSessionRemove,
-      stopAllSessions: mocks.mockSessionStopAll,
+    mockAgentInstanceManager = {
+      createAgentInstance: mocks.mockSessionCreate,
+      removeAgentInstance: mocks.mockSessionRemove,
+      stopAllAgentInstances: mocks.mockSessionStopAll,
       sendMessage: mocks.mockSendMessage,
-      getSession: mocks.mockGetSession,
-      onSessionIdle: vi.fn(),
+      getAgentInstance: mocks.mockGetSession,
+      onAgentInstanceIdle: vi.fn(),
     };
     mocks.mockListTasks.mockResolvedValue([]);
     mocks.mockSendMessage.mockResolvedValue(undefined);
@@ -100,7 +100,7 @@ describe("AgentOrchestrator", () => {
     
     orchestrator = new AgentOrchestrator({ 
       worktreeManager: mockWorktreeManager,
-      sessionManager: mockSessionManager,
+      agentInstanceManager: mockAgentInstanceManager,
     });
   });
 

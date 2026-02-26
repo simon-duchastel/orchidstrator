@@ -29,7 +29,7 @@ async function main() {
   try {
     // Create Pi session manager
     const sessionManager = new PiSessionAdapter({
-      sessionsDir: worktreesDir,
+      instancesDir: worktreesDir,
     });
 
     log.log("[orchid] Pi session manager initialized");
@@ -37,7 +37,7 @@ async function main() {
     // Handle shutdown signals gracefully
     const shutdown = async (signal: string) => {
       log.log(`[orchid] Received ${signal}, shutting down...`);
-      await sessionManager.stopAllSessions();
+      await sessionManager.stopAllAgentInstances();
       process.exit(0);
     };
 

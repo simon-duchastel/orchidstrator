@@ -1,7 +1,7 @@
 /**
  * Pi Session Adapter
  *
- * Implements SessionManagerInterface using the @mariozechner/pi-coding-agent SDK.
+ * Implements AgentInstanceManager using the @mariozechner/pi-coding-agent SDK.
  */
 
 import { join } from "node:path";
@@ -14,22 +14,22 @@ import {
   type CreateAgentSessionResult,
 } from "@mariozechner/pi-coding-agent";
 import {
-  type SessionManagerInterface,
-  type AgentSession as OrchidAgentSession,
-  type SessionIdleCallback,
-  type CreateSessionOptions,
+  type AgentInstanceManager,
+  type AgentInstance,
+  type AgentInstanceIdleCallback,
+  type CreateAgentInstanceOptions,
 } from "../types.js";
 
 export interface PiSessionAdapterOptions {
-  /** Base directory for all sessions */
-  sessionsDir: string;
+  /** Base directory for all agent instances */
+  instancesDir: string;
 }
 
 /**
- * Pi session info stored in adapter
+ * Pi agent instance info stored in adapter
  */
-interface PiSessionInfo {
-  sessionId: string;
+interface PiAgentInstanceInfo {
+  instanceId: string;
   taskId: string;
   workingDirectory: string;
   createdAt: Date;
@@ -41,29 +41,29 @@ interface PiSessionInfo {
 }
 
 /**
- * Adapter that implements SessionManagerInterface using Pi SDK.
+ * Adapter that implements AgentInstanceManager using Pi SDK.
  */
-export class PiSessionAdapter implements SessionManagerInterface {
-  private sessionsDir: string;
-  private sessions: Map<string, PiSessionInfo> = new Map();
-  private idleCallbacks: SessionIdleCallback[] = [];
+export class PiSessionAdapter implements AgentInstanceManager {
+  private instancesDir: string;
+  private instances: Map<string, PiAgentInstanceInfo> = new Map();
+  private idleCallbacks: AgentInstanceIdleCallback[] = [];
 
   constructor(options: PiSessionAdapterOptions) {
-    this.sessionsDir = options.sessionsDir;
+    this.instancesDir = options.instancesDir;
 
-    // Ensure the sessions directory exists
-    if (!existsSync(this.sessionsDir)) {
-      mkdirSync(this.sessionsDir, { recursive: true });
+    // Ensure the instances directory exists
+    if (!existsSync(this.instancesDir)) {
+      mkdirSync(this.instancesDir, { recursive: true });
     }
   }
 
   /**
-   * Create a new session for an agent.
+   * Create a new agent instance.
    */
-  async createSession(options: CreateSessionOptions): Promise<OrchidAgentSession> {
-    // Check if session already exists
-    if (this.sessions.has(options.taskId)) {
-      throw new Error(`Session for task ${options.taskId} already exists`);
+  async createAgentInstance(options: CreateAgentInstanceOptions): Promise<AgentInstance> {
+    // Check if instance already exists
+    if (this.instances.has(options.taskId)) {
+      throw new Error(`Agent instance for task ${options.taskId} already exists`);
     }
 
     // Ensure the working directory exists
@@ -84,27 +84,27 @@ export class PiSessionAdapter implements SessionManagerInterface {
         sessionManager: SessionManager.inMemory(),
       });
 
-      const sessionId = `pi-${options.taskId}-${Date.now()}`;
+      const instanceId = `pi-${options.taskId}-${Date.now()}`;
 
       // Subscribe to events to detect when session becomes idle
       const unsubscribe = result.session.subscribe((event) => {
         // Check for events that indicate the agent has finished processing
         if (event.type === "message_end" || event.type === "turn_end") {
-          const sessionInfo = this.sessions.get(options.taskId);
-          if (sessionInfo) {
-            this.triggerSessionIdle(options.taskId, {
-              sessionId: sessionInfo.sessionId,
-              taskId: sessionInfo.taskId,
-              workingDirectory: sessionInfo.workingDirectory,
-              createdAt: sessionInfo.createdAt,
+          const instanceInfo = this.instances.get(options.taskId);
+          if (instanceInfo) {
+            this.triggerAgentInstanceIdle(options.taskId, {
+              instanceId: instanceInfo.instanceId,
+              taskId: instanceInfo.taskId,
+              workingDirectory: instanceInfo.workingDirectory,
+              createdAt: instanceInfo.createdAt,
               status: "running",
             });
           }
         }
       });
 
-      const sessionInfo: PiSessionInfo = {
-        sessionId,
+      const instanceInfo: PiAgentInstanceInfo = {
+        instanceId,
         taskId: options.taskId,
         workingDirectory: options.workingDirectory,
         createdAt: new Date(),
@@ -113,118 +113,118 @@ export class PiSessionAdapter implements SessionManagerInterface {
         unsubscribe,
       };
 
-      this.sessions.set(options.taskId, sessionInfo);
+      this.instances.set(options.taskId, instanceInfo);
 
       return {
-        sessionId,
+        instanceId,
         taskId: options.taskId,
         workingDirectory: options.workingDirectory,
-        createdAt: sessionInfo.createdAt,
+        createdAt: instanceInfo.createdAt,
         status: "running",
       };
     } catch (error) {
       throw new Error(
-        `Failed to create Pi session for task ${options.taskId}: ${error instanceof Error ? error.message : "Unknown error"}`
+        `Failed to create Pi agent instance for task ${options.taskId}: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     }
   }
 
   /**
-   * Get a session by task ID.
+   * Get an agent instance by task ID.
    */
-  async getSession(taskId: string): Promise<OrchidAgentSession | undefined> {
-    const sessionInfo = this.sessions.get(taskId);
-    if (!sessionInfo) {
+  async getAgentInstance(taskId: string): Promise<AgentInstance | undefined> {
+    const instanceInfo = this.instances.get(taskId);
+    if (!instanceInfo) {
       return undefined;
     }
 
     return {
-      sessionId: sessionInfo.sessionId,
-      taskId: sessionInfo.taskId,
-      workingDirectory: sessionInfo.workingDirectory,
-      createdAt: sessionInfo.createdAt,
-      status: sessionInfo.status,
+      instanceId: instanceInfo.instanceId,
+      taskId: instanceInfo.taskId,
+      workingDirectory: instanceInfo.workingDirectory,
+      createdAt: instanceInfo.createdAt,
+      status: instanceInfo.status,
     };
   }
 
   /**
-   * Send a message to a session.
+   * Send a message to an agent instance.
    * For Pi, this uses session.prompt() to send a message to the agent.
    */
   async sendMessage(
-    sessionId: string,
+    instanceId: string,
     message: string,
     _workingDirectory: string
   ): Promise<void> {
-    // Find session by sessionId
-    let sessionInfo: PiSessionInfo | undefined;
-    for (const [, info] of this.sessions) {
-      if (info.sessionId === sessionId) {
-        sessionInfo = info;
+    // Find instance by instanceId
+    let instanceInfo: PiAgentInstanceInfo | undefined;
+    for (const [, info] of this.instances) {
+      if (info.instanceId === instanceId) {
+        instanceInfo = info;
         break;
       }
     }
 
-    if (!sessionInfo) {
-      throw new Error(`Session ${sessionId} not found`);
+    if (!instanceInfo) {
+      throw new Error(`Agent instance ${instanceId} not found`);
     }
 
     try {
       // Send message to the Pi agent using prompt()
       // The agent will process it and emit events that we subscribe to
-      await sessionInfo.piSession.prompt(message);
+      await instanceInfo.piSession.prompt(message);
     } catch (error) {
       throw new Error(
-        `Failed to send message to Pi session ${sessionId}: ${error instanceof Error ? error.message : "Unknown error"}`
+        `Failed to send message to Pi agent instance ${instanceId}: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     }
   }
 
   /**
-   * Remove a session.
+   * Remove an agent instance.
    */
-  async removeSession(taskId: string): Promise<void> {
-    const sessionInfo = this.sessions.get(taskId);
-    if (!sessionInfo) {
-      throw new Error(`Session for task ${taskId} not found`);
+  async removeAgentInstance(taskId: string): Promise<void> {
+    const instanceInfo = this.instances.get(taskId);
+    if (!instanceInfo) {
+      throw new Error(`Agent instance for task ${taskId} not found`);
     }
 
     // Unsubscribe from events
-    sessionInfo.unsubscribe();
+    instanceInfo.unsubscribe();
 
-    // Remove from sessions map
-    this.sessions.delete(taskId);
+    // Remove from instances map
+    this.instances.delete(taskId);
   }
 
   /**
-   * Stop all active sessions.
+   * Stop all active agent instances.
    */
-  async stopAllSessions(): Promise<void> {
-    for (const [taskId, sessionInfo] of this.sessions) {
+  async stopAllAgentInstances(): Promise<void> {
+    for (const [taskId, instanceInfo] of this.instances) {
       // Unsubscribe from events
-      sessionInfo.unsubscribe();
+      instanceInfo.unsubscribe();
     }
-    this.sessions.clear();
+    this.instances.clear();
   }
 
   /**
-   * Register a callback for session idle events.
+   * Register a callback for agent instance idle events.
    * For Pi, this is triggered when the agent finishes processing (message_end event).
    */
-  onSessionIdle(callback: SessionIdleCallback): void {
+  onAgentInstanceIdle(callback: AgentInstanceIdleCallback): void {
     this.idleCallbacks.push(callback);
   }
 
   /**
-   * Trigger idle callbacks - called when a session becomes idle.
+   * Trigger idle callbacks - called when an agent instance becomes idle.
    */
-  private triggerSessionIdle(taskId: string, session: OrchidAgentSession): void {
+  private triggerAgentInstanceIdle(taskId: string, instance: AgentInstance): void {
     for (const callback of this.idleCallbacks) {
       try {
-        callback(taskId, session);
+        callback(taskId, instance);
       } catch (error) {
         // Log but don't let one callback failure stop others
-        console.error("Error in session idle callback:", error);
+        console.error("Error in agent instance idle callback:", error);
       }
     }
   }

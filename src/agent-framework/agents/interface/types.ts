@@ -1,36 +1,36 @@
 /**
- * Agent Session Interface Types
+ * Agent Instance Interface Types
  *
- * Abstracts different session management approaches.
+ * Abstracts different agent instance management approaches.
  * YAGNI - only includes methods and types currently used by agents.
  */
 
 /**
- * Represents an agent session
+ * Represents an agent instance
  */
-export interface AgentSession {
-  /** Unique session identifier */
-  sessionId: string;
-  /** The task/agent this session belongs to */
+export interface AgentInstance {
+  /** Unique instance identifier */
+  instanceId: string;
+  /** The task/agent this instance belongs to */
   taskId: string;
-  /** Path to the session's working directory */
+  /** Path to the instance's working directory */
   workingDirectory: string;
-  /** When the session was created */
+  /** When the instance was created */
   createdAt: Date;
-  /** Session status */
+  /** Instance status */
   status: "running" | "stopping" | "stopped";
 }
 
 /**
- * Callback type for session idle events
+ * Callback type for agent instance idle events
  */
-export type SessionIdleCallback = (taskId: string, session: AgentSession) => void;
+export type AgentInstanceIdleCallback = (taskId: string, instance: AgentInstance) => void;
 
 /**
- * Options for creating a session
+ * Options for creating an agent instance
  */
-export interface CreateSessionOptions {
-  /** The task ID (used as the session identifier) */
+export interface CreateAgentInstanceOptions {
+  /** The task ID (used as the instance identifier) */
   taskId: string;
   /** Path to the working directory */
   workingDirectory: string;
@@ -39,59 +39,59 @@ export interface CreateSessionOptions {
 }
 
 /**
- * Interface for session managers.
+ * Interface for agent instance managers.
  * Abstracts different AI agent implementations.
  */
-export interface SessionManagerInterface {
+export interface AgentInstanceManager {
   /**
-   * Create a new session for an agent.
+   * Create a new agent instance.
    *
-   * @param options - Session creation options
-   * @returns The created session
-   * @throws Error if session already exists or creation fails
+   * @param options - Agent instance creation options
+   * @returns The created agent instance
+   * @throws Error if instance already exists or creation fails
    */
-  createSession(options: CreateSessionOptions): Promise<AgentSession>;
+  createAgentInstance(options: CreateAgentInstanceOptions): Promise<AgentInstance>;
 
   /**
-   * Get a session by task ID.
+   * Get an agent instance by task ID.
    *
    * @param taskId - The task identifier
-   * @returns The session or undefined if not found
+   * @returns The agent instance or undefined if not found
    */
-  getSession(taskId: string): Promise<AgentSession | undefined>;
+  getAgentInstance(taskId: string): Promise<AgentInstance | undefined>;
 
   /**
-   * Send a message to a session.
+   * Send a message to an agent instance.
    *
-   * @param sessionId - The session ID
+   * @param instanceId - The instance ID
    * @param message - The message text to send
-   * @param workingDirectory - The working directory for the session
+   * @param workingDirectory - The working directory for the instance
    * @throws Error if message sending fails
    */
   sendMessage(
-    sessionId: string,
+    instanceId: string,
     message: string,
     workingDirectory: string
   ): Promise<void>;
 
   /**
-   * Remove a session.
+   * Remove an agent instance.
    *
    * @param taskId - The task identifier
-   * @throws Error if session doesn't exist
+   * @throws Error if instance doesn't exist
    */
-  removeSession(taskId: string): Promise<void>;
+  removeAgentInstance(taskId: string): Promise<void>;
 
   /**
-   * Stop all active sessions.
+   * Stop all active agent instances.
    */
-  stopAllSessions(): Promise<void>;
+  stopAllAgentInstances(): Promise<void>;
 
   /**
-   * Register a callback for session idle events.
-   * Called when a session becomes idle (completes its work).
+   * Register a callback for agent instance idle events.
+   * Called when an agent instance becomes idle (completes its work).
    *
-   * @param callback - Function to call when a session becomes idle
+   * @param callback - Function to call when an agent instance becomes idle
    */
-  onSessionIdle(callback: SessionIdleCallback): void;
+  onAgentInstanceIdle(callback: AgentInstanceIdleCallback): void;
 }

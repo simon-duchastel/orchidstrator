@@ -13,7 +13,7 @@
 import { TaskManager, type Task as DysonTask } from "dyson-swarm";
 import { WorktreeManager } from "../core/git/worktrees/index.js";
 import { getWorktreesDir } from "../config/paths.js";
-import type { SessionManagerInterface } from "./agents/interface/index.js";
+import type { AgentInstanceManager } from "./agents/interface/index.js";
 import { Task, TaskState, createTaskFromDyson } from "../core/tasks/index.js";
 import { createImplementorAgent, type ImplementorAgent } from "./agents/implementor.js";
 import { createReviewerAgent, type ReviewerAgent } from "./agents/reviewer.js";
@@ -31,7 +31,7 @@ export interface AgentInfo {
 export interface AgentOrchestratorOptions {
   cwdProvider?: () => string;
   worktreeManager?: WorktreeManager;
-  sessionManager?: SessionManagerInterface;
+  agentInstanceManager?: AgentInstanceManager;
 }
 
 export class AgentOrchestrator {
@@ -42,7 +42,7 @@ export class AgentOrchestrator {
   private mergers: Map<string, MergerAgent> = new Map();
   private abortController: AbortController | null = null;
   private worktreeManager: WorktreeManager;
-  private sessionManager: SessionManagerInterface;
+  private agentInstanceManager: AgentInstanceManager;
   private cwdProvider: () => string;
   private worktreesDir: string;
 
@@ -53,10 +53,10 @@ export class AgentOrchestrator {
     
     // Initialize session manager
     this.worktreesDir = getWorktreesDir(this.cwdProvider);
-    if (!options.sessionManager) {
+    if (!options.agentInstanceManager) {
       throw new Error("Session manager is required");
     }
-    this.sessionManager = options.sessionManager;
+    this.agentInstanceManager = options.agentInstanceManager;
   }
 
   async start(): Promise<void> {
@@ -68,7 +68,7 @@ export class AgentOrchestrator {
     this.abortController = new AbortController();
     log.log("[orchestrator] Starting task monitor...");
 
-    // TODO: Implement generic event listener via SessionManagerInterface
+    // TODO: Implement generic event listener via AgentInstanceManager
     // This will be added in a future PR
     log.log("[orchestrator] Note: Event listener will be implemented in future PR");
 
@@ -236,7 +236,7 @@ export class AgentOrchestrator {
         taskId: task.taskId,
         dysonTask: task.dysonTask,
         worktreePath: worktreePath,
-        sessionManager: this.sessionManager,
+        agentInstanceManager: this.agentInstanceManager,
         taskManager: this.taskManager,
         onComplete: (taskId: string) => {
           this.handleImplementationComplete(taskId);
@@ -284,7 +284,7 @@ export class AgentOrchestrator {
         taskId: task.taskId,
         dysonTask: task.dysonTask,
         worktreePath: worktreePath,
-        sessionManager: this.sessionManager,
+        agentInstanceManager: this.agentInstanceManager,
         onComplete: (taskId: string) => {
           this.handleReviewComplete(taskId);
         },
@@ -330,7 +330,7 @@ export class AgentOrchestrator {
       const merger = createMergerAgent({
         taskId: task.taskId,
         worktreePath: worktreePath,
-        sessionManager: this.sessionManager,
+        agentInstanceManager: this.agentInstanceManager,
         onComplete: (taskId: string) => {
           this.handleMergeComplete(taskId);
         },

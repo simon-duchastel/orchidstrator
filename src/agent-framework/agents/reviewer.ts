@@ -2,14 +2,14 @@
  * Reviewer Agent
  *
  * Handles the review phase of a task.
- * Creates and manages its own session with the reviewer system prompt.
+ * Creates and manages its own agent instance with the reviewer system prompt.
  * Reports back to orchestrator when complete.
  * Worktree is managed by the orchestrator.
  */
 
 import { type Task as DysonTask } from "dyson-swarm";
-import { type AgentSession } from "./interface/types.js";
-import type { SessionManagerInterface } from "./interface/index.js";
+import { type AgentInstance } from "./interface/types.js";
+import type { AgentInstanceManager } from "./interface/index.js";
 import { 
   fillReviewerPromptTemplate,
   getReviewerSystemPrompt 
@@ -20,7 +20,7 @@ export interface ReviewerAgentOptions {
   taskId: string;
   dysonTask: DysonTask;
   worktreePath: string;
-  sessionManager: SessionManagerInterface;
+  agentInstanceManager: AgentInstanceManager;
   onComplete: (taskId: string) => void;
   onError: (taskId: string, error: Error) => void;
 }
@@ -36,15 +36,15 @@ export interface ReviewerAgent {
 /**
  * ReviewerAgent handles the review phase of a task.
  * Created per-task and destroyed when review is complete.
- * Worktree is provided by the orchestrator, but session is managed by the agent.
+ * Worktree is provided by the orchestrator, but agent instance is managed by the agent.
  */
 export class ReviewerAgentImpl implements ReviewerAgent {
   readonly agentId: string;
   readonly taskId: string;
   private dysonTask: DysonTask;
   private worktreePath: string;
-  private session: AgentSession | undefined;
-  private sessionManager: SessionManagerInterface;
+  private agentInstance: AgentInstance | undefined;
+  private agentInstanceManager: AgentInstanceManager;
   private onComplete: (taskId: string) => void;
   private onError: (taskId: string, error: Error) => void;
   private _isRunning = false;
@@ -54,14 +54,14 @@ export class ReviewerAgentImpl implements ReviewerAgent {
     this.agentId = `${options.taskId}-reviewer`;
     this.dysonTask = options.dysonTask;
     this.worktreePath = options.worktreePath;
-    this.sessionManager = options.sessionManager;
+    this.agentInstanceManager = options.agentInstanceManager;
     this.onComplete = options.onComplete;
     this.onError = options.onError;
   }
 
   /**
    * Start the reviewer agent.
-   * Creates its own session with reviewer system prompt, then sends initial prompt.
+   * Creates its own agent instance with reviewer system prompt, then sends initial prompt.
    */
   async start(): Promise<void> {
     if (this._isRunning) {
@@ -73,13 +73,13 @@ export class ReviewerAgentImpl implements ReviewerAgent {
     log.log(`[reviewer] Starting agent ${this.agentId} for task ${this.taskId}`);
 
     try {
-      // Create session with reviewer system prompt
-      this.session = await this.sessionManager.createSession({
+      // Create agent instance with reviewer system prompt
+      this.agentInstance = await this.agentInstanceManager.createAgentInstance({
         taskId: this.taskId,
         workingDirectory: this.worktreePath,
         systemPrompt: getReviewerSystemPrompt(),
       });
-      log.log(`[reviewer] Created session ${this.session.sessionId} for task ${this.taskId}`);
+      log.log(`[reviewer] Created agent instance ${this.agentInstance.instanceId} for task ${this.taskId}`);
       
       // Send initial prompt
       await this.sendInitialPrompt();
@@ -94,7 +94,7 @@ export class ReviewerAgentImpl implements ReviewerAgent {
 
   /**
    * Stop the reviewer agent.
-   * Cleans up its own session.
+   * Cleans up its own agent instance.
    */
   async stop(): Promise<void> {
     if (!this._isRunning) {
@@ -104,15 +104,15 @@ export class ReviewerAgentImpl implements ReviewerAgent {
     log.log(`[reviewer] Stopping agent ${this.agentId}`);
     this._isRunning = false;
     
-    // Clean up session if it exists
-    if (this.session) {
+    // Clean up agent instance if it exists
+    if (this.agentInstance) {
       try {
-        await this.sessionManager.removeSession(this.taskId);
-        log.log(`[reviewer] Removed session for task ${this.taskId}`);
+        await this.agentInstanceManager.removeAgentInstance(this.taskId);
+        log.log(`[reviewer] Removed agent instance for task ${this.taskId}`);
       } catch (error) {
-        log.error(`[reviewer] Failed to remove session for task ${this.taskId}:`, error);
+        log.error(`[reviewer] Failed to remove agent instance for task ${this.taskId}:`, error);
       }
-      this.session = undefined;
+      this.agentInstance = undefined;
     }
     
     log.log(`[reviewer] Agent ${this.agentId} stopped`);
@@ -126,41 +126,41 @@ export class ReviewerAgentImpl implements ReviewerAgent {
   }
 
   /**
-   * Get the session
+   * Get the agent instance
    */
-  getSession(): AgentSession | undefined {
-    return this.session;
+  getAgentInstance(): AgentInstance | undefined {
+    return this.agentInstance;
   }
 
   /**
-   * Handle session idle event - called by orchestrator when session becomes idle
+   * Handle agent instance idle event - called by orchestrator when agent instance becomes idle
    */
-  async handleSessionIdle(): Promise<void> {
-    if (!this.session) {
-      log.error(`[reviewer] No session available for task ${this.taskId}`);
+  async handleAgentInstanceIdle(): Promise<void> {
+    if (!this.agentInstance) {
+      log.error(`[reviewer] No agent instance available for task ${this.taskId}`);
       return;
     }
     
-    log.log(`[reviewer] Session ${this.session.sessionId} became idle for task ${this.taskId}`);
+    log.log(`[reviewer] Agent instance ${this.agentInstance.instanceId} became idle for task ${this.taskId}`);
     
     this._isRunning = false;
     
-    // Clean up session
+    // Clean up agent instance
     try {
-      await this.sessionManager.removeSession(this.taskId);
-      log.log(`[reviewer] Removed session for task ${this.taskId}`);
+      await this.agentInstanceManager.removeAgentInstance(this.taskId);
+      log.log(`[reviewer] Removed agent instance for task ${this.taskId}`);
     } catch (error) {
-      log.error(`[reviewer] Failed to remove session for task ${this.taskId}:`, error);
+      log.error(`[reviewer] Failed to remove agent instance for task ${this.taskId}:`, error);
     }
-    this.session = undefined;
+    this.agentInstance = undefined;
     
     // Notify completion
     this.onComplete(this.taskId);
   }
 
   private async sendInitialPrompt(): Promise<void> {
-    if (!this.session) {
-      throw new Error("Session not available");
+    if (!this.agentInstance) {
+      throw new Error("Agent instance not available");
     }
     
     try {
@@ -170,8 +170,8 @@ export class ReviewerAgentImpl implements ReviewerAgent {
         worktreePath: this.worktreePath,
       });
 
-      await this.sessionManager.sendMessage(
-        this.session.sessionId,
+      await this.agentInstanceManager.sendMessage(
+        this.agentInstance.instanceId,
         promptMessage,
         this.worktreePath
       );

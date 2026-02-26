@@ -2,21 +2,21 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createMergerAgent } from "./merger.js";
 
 const mocks = vi.hoisted(() => {
-  const mockSessionCreate = vi.fn();
-  const mockSessionRemove = vi.fn();
+  const mockAgentInstanceCreate = vi.fn();
+  const mockAgentInstanceRemove = vi.fn();
   const mockSendMessage = vi.fn();
 
-  class MockSessionManager {
-    createSession = mockSessionCreate;
-    removeSession = mockSessionRemove;
+  class MockAgentInstanceManager {
+    createAgentInstance = mockAgentInstanceCreate;
+    removeAgentInstance = mockAgentInstanceRemove;
     sendMessage = mockSendMessage;
   }
 
   return {
-    mockSessionCreate,
-    mockSessionRemove,
+    mockAgentInstanceCreate,
+    mockAgentInstanceRemove,
     mockSendMessage,
-    MockSessionManager,
+    MockAgentInstanceManager,
   };
 });
 
@@ -26,11 +26,11 @@ vi.mock("../../templates/index.js", () => ({
 }));
 
 describe("MergerAgent", () => {
-  let mockSessionManager: any;
+  let mockAgentInstanceManager: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSessionManager = new mocks.MockSessionManager();
+    mockAgentInstanceManager = new mocks.MockAgentInstanceManager();
   });
 
   afterEach(() => {
@@ -39,27 +39,27 @@ describe("MergerAgent", () => {
 
   describe("start", () => {
     it("should create session with merger system prompt", async () => {
-      const mockSession = {
-        sessionId: "session-1",
+      const mockAgentInstance = {
+        instanceId: "session-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
         status: "running" as const,
       };
-      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockAgentInstanceCreate.mockResolvedValue(mockAgentInstance);
       mocks.mockSendMessage.mockResolvedValue(undefined);
 
       const agent = createMergerAgent({
         taskId: "task-1",
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
 
       await agent.start();
 
-      expect(mocks.mockSessionCreate).toHaveBeenCalledWith({
+      expect(mocks.mockAgentInstanceCreate).toHaveBeenCalledWith({
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         systemPrompt: "merger system prompt",
@@ -67,20 +67,20 @@ describe("MergerAgent", () => {
     });
 
     it("should send initial prompt after creating session", async () => {
-      const mockSession = {
-        sessionId: "session-1",
+      const mockAgentInstance = {
+        instanceId: "session-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
         status: "running" as const,
       };
-      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockAgentInstanceCreate.mockResolvedValue(mockAgentInstance);
       mocks.mockSendMessage.mockResolvedValue(undefined);
 
       const agent = createMergerAgent({
         taskId: "task-1",
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
@@ -95,13 +95,13 @@ describe("MergerAgent", () => {
     });
 
     it("should call onError if session creation fails", async () => {
-      mocks.mockSessionCreate.mockRejectedValue(new Error("Session creation failed"));
+      mocks.mockAgentInstanceCreate.mockRejectedValue(new Error("Session creation failed"));
       const onErrorMock = vi.fn();
 
       const agent = createMergerAgent({
         taskId: "task-1",
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
         onComplete: vi.fn(),
         onError: onErrorMock,
       });
@@ -115,21 +115,21 @@ describe("MergerAgent", () => {
 
   describe("stop", () => {
     it("should remove session when stopped", async () => {
-      const mockSession = {
-        sessionId: "session-1",
+      const mockAgentInstance = {
+        instanceId: "session-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
         status: "running" as const,
       };
-      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockAgentInstanceCreate.mockResolvedValue(mockAgentInstance);
       mocks.mockSendMessage.mockResolvedValue(undefined);
-      mocks.mockSessionRemove.mockResolvedValue(undefined);
+      mocks.mockAgentInstanceRemove.mockResolvedValue(undefined);
 
       const agent = createMergerAgent({
         taskId: "task-1",
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
@@ -139,7 +139,7 @@ describe("MergerAgent", () => {
 
       await agent.stop();
 
-      expect(mocks.mockSessionRemove).toHaveBeenCalledWith("task-1");
+      expect(mocks.mockAgentInstanceRemove).toHaveBeenCalledWith("task-1");
       expect(agent.isRunning()).toBe(false);
     });
 
@@ -147,7 +147,7 @@ describe("MergerAgent", () => {
       const agent = createMergerAgent({
         taskId: "task-1",
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
@@ -156,33 +156,33 @@ describe("MergerAgent", () => {
     });
   });
 
-  describe("handleSessionIdle", () => {
+  describe("handleAgentInstanceIdle", () => {
     it("should remove session and call onComplete", async () => {
-      const mockSession = {
-        sessionId: "session-1",
+      const mockAgentInstance = {
+        instanceId: "session-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
         status: "running" as const,
       };
-      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockAgentInstanceCreate.mockResolvedValue(mockAgentInstance);
       mocks.mockSendMessage.mockResolvedValue(undefined);
-      mocks.mockSessionRemove.mockResolvedValue(undefined);
+      mocks.mockAgentInstanceRemove.mockResolvedValue(undefined);
       const onCompleteMock = vi.fn();
 
       const agent = createMergerAgent({
         taskId: "task-1",
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
         onComplete: onCompleteMock,
         onError: vi.fn(),
       });
 
       await agent.start();
 
-      await (agent as any).handleSessionIdle();
+      await (agent as any).handleAgentInstanceIdle();
 
-      expect(mocks.mockSessionRemove).toHaveBeenCalledWith("task-1");
+      expect(mocks.mockAgentInstanceRemove).toHaveBeenCalledWith("task-1");
       expect(onCompleteMock).toHaveBeenCalledWith("task-1");
       expect(agent.isRunning()).toBe(false);
     });
@@ -193,7 +193,7 @@ describe("MergerAgent", () => {
       const agent = createMergerAgent({
         taskId: "task-1",
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
@@ -202,20 +202,20 @@ describe("MergerAgent", () => {
     });
 
     it("should return true after start", async () => {
-      const mockSession = {
-        sessionId: "session-1",
+      const mockAgentInstance = {
+        instanceId: "session-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
         status: "running" as const,
       };
-      mocks.mockSessionCreate.mockResolvedValue(mockSession);
+      mocks.mockAgentInstanceCreate.mockResolvedValue(mockAgentInstance);
       mocks.mockSendMessage.mockResolvedValue(undefined);
 
       const agent = createMergerAgent({
         taskId: "task-1",
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockAgentInstanceManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });

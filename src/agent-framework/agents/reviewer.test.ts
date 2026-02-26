@@ -6,9 +6,9 @@ const mocks = vi.hoisted(() => {
   const mockSessionRemove = vi.fn();
   const mockSendMessage = vi.fn();
 
-  class MockSessionManager {
-    createSession = mockSessionCreate;
-    removeSession = mockSessionRemove;
+  class MockAgentInstanceManager {
+    createAgentInstance = mockSessionCreate;
+    removeAgentInstance = mockSessionRemove;
     sendMessage = mockSendMessage;
   }
 
@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => {
     mockSessionCreate,
     mockSessionRemove,
     mockSendMessage,
-    MockSessionManager,
+    MockAgentInstanceManager,
   };
 });
 
@@ -30,7 +30,7 @@ describe("ReviewerAgent", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSessionManager = new mocks.MockSessionManager();
+    mockSessionManager = new mocks.MockAgentInstanceManager();
   });
 
   afterEach(() => {
@@ -40,7 +40,7 @@ describe("ReviewerAgent", () => {
   describe("start", () => {
     it("should create session with reviewer system prompt", async () => {
       const mockSession = {
-        sessionId: "session-1",
+        instanceId: "session-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
@@ -58,7 +58,7 @@ describe("ReviewerAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockSessionManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
@@ -74,7 +74,7 @@ describe("ReviewerAgent", () => {
 
     it("should send initial prompt after creating session", async () => {
       const mockSession = {
-        sessionId: "session-1",
+        instanceId: "session-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
@@ -92,7 +92,7 @@ describe("ReviewerAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockSessionManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
@@ -119,7 +119,7 @@ describe("ReviewerAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockSessionManager,
         onComplete: vi.fn(),
         onError: onErrorMock,
       });
@@ -134,7 +134,7 @@ describe("ReviewerAgent", () => {
   describe("stop", () => {
     it("should remove session when stopped", async () => {
       const mockSession = {
-        sessionId: "session-1",
+        instanceId: "session-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
@@ -153,7 +153,7 @@ describe("ReviewerAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockSessionManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
@@ -177,7 +177,7 @@ describe("ReviewerAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockSessionManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
@@ -186,10 +186,10 @@ describe("ReviewerAgent", () => {
     });
   });
 
-  describe("handleSessionIdle", () => {
+  describe("handleAgentInstanceIdle", () => {
     it("should remove session and call onComplete", async () => {
       const mockSession = {
-        sessionId: "session-1",
+        instanceId: "session-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
@@ -209,14 +209,14 @@ describe("ReviewerAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockSessionManager,
         onComplete: onCompleteMock,
         onError: vi.fn(),
       });
 
       await agent.start();
 
-      await (agent as any).handleSessionIdle();
+      await (agent as any).handleAgentInstanceIdle();
 
       expect(mocks.mockSessionRemove).toHaveBeenCalledWith("task-1");
       expect(onCompleteMock).toHaveBeenCalledWith("task-1");
@@ -235,7 +235,7 @@ describe("ReviewerAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockSessionManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
@@ -245,7 +245,7 @@ describe("ReviewerAgent", () => {
 
     it("should return true after start", async () => {
       const mockSession = {
-        sessionId: "session-1",
+        instanceId: "session-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
@@ -263,7 +263,7 @@ describe("ReviewerAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockSessionManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
       });
