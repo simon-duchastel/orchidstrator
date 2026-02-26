@@ -10,7 +10,7 @@
 import { TaskManager, type Task as DysonTask } from "dyson-swarm";
 import { type AgentSession } from "../agent-interface/types.js";
 import type { SessionManagerInterface } from "../agent-interface/index.js";
-import { fillAgentPromptTemplate } from "../templates/index.js";
+import { fillImplementorAgentPromptTemplate } from "../templates/index.js";
 import { log } from "../core/logging/index.js";
 import type { Task } from "../tasks/index.js";
 
@@ -133,7 +133,7 @@ export class ImplementorAgentImpl implements ImplementorAgent {
 
   private async sendInitialPrompt(): Promise<void> {
     try {
-      const promptMessage = fillAgentPromptTemplate({
+      const promptMessage = fillImplementorAgentPromptTemplate({
         taskTitle: this.dysonTask.frontmatter.title || "",
         taskDescription: this.dysonTask.description || "",
         worktreePath: this.worktreePath,

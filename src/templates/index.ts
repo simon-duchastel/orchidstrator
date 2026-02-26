@@ -1,5 +1,5 @@
 export { 
-  fillAgentPromptTemplate, 
+  fillImplementorAgentPromptTemplate, 
   fillReviewerPromptTemplate,
   fillMergerPromptTemplate,
   type AgentPromptData,

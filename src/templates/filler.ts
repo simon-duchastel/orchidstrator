@@ -5,7 +5,7 @@ let agentPromptTemplate: string | undefined;
 let reviewerPromptTemplate: string | undefined;
 let mergerPromptTemplate: string | undefined;
 
-function getAgentPromptTemplate(): string {
+function getImplementorAgentPromptTemplate(): string {
   if (!agentPromptTemplate) {
     agentPromptTemplate = readFileSync(
       join(process.cwd(), "templates", "implementor-agent-prompt.md"),
@@ -52,8 +52,8 @@ export interface MergerPromptData {
   worktreePath: string;
 }
 
-export function fillAgentPromptTemplate(data: AgentPromptData): string {
-  return getAgentPromptTemplate()
+export function fillImplementorAgentPromptTemplate(data: AgentPromptData): string {
+  return getImplementorAgentPromptTemplate()
     .replace(/\{\{taskTitle\}\}/g, data.taskTitle || "")
     .replace(/\{\{taskDescription\}\}/g, data.taskDescription || "")
     .replace(/\{\{worktreePath\}\}/g, data.worktreePath);

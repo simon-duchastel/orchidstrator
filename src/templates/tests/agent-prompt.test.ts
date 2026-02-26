@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { fillAgentPromptTemplate } from "../../templates/index.js";
+import { fillImplementorAgentPromptTemplate } from "../../templates/index.js";
 
-describe("fillAgentPromptTemplate", () => {
+describe("fillImplementorAgentPromptTemplate", () => {
   it("should correctly fill the agent prompt template", () => {
     const data = {
       taskTitle: "Test Task Title",
@@ -9,7 +9,7 @@ describe("fillAgentPromptTemplate", () => {
       worktreePath: "/path/to/worktree",
     };
 
-    const result = fillAgentPromptTemplate(data);
+    const result = fillImplementorAgentPromptTemplate(data);
 
     expect(result).toBe(`# Task Implementation
 
