@@ -5,12 +5,12 @@
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "orchid": "dist/cli.js"
+    "orchid": "dist/cli/index.js"
   },
   "scripts": {
     "build": "tsup",
-    "dev": "tsx src/cli.ts",
-    "start": "bun dist/cli.js",
+    "dev": "tsx src/cli/index.ts",
+    "start": "bun dist/cli/index.js",
     "test": "vitest --run",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage"
