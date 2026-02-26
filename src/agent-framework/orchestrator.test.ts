@@ -313,11 +313,11 @@ describe("AgentOrchestrator", () => {
       orchestrator.start();
       await vi.runAllTimersAsync();
 
-      // Verify that createSession was called with systemPrompt: "todo"
+      // Verify that createSession was called with proper parameters including systemPrompt
       expect(mocks.mockSessionCreate).toHaveBeenCalledWith({
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
-        systemPrompt: "todo",
+        systemPrompt: expect.any(String),
       });
     });
   });

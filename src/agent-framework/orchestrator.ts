@@ -19,6 +19,7 @@ import { Task, TaskState, createTaskFromDyson } from "../tasks/index.js";
 import { createImplementorAgent, type ImplementorAgent } from "../agents/implementor.js";
 import { createReviewerAgent, type ReviewerAgent } from "../agents/reviewer.js";
 import { createMergerAgent, type MergerAgent } from "../agents/merger.js";
+import { getImplementorSystemPrompt } from "../templates/index.js";
 import { log } from "../core/logging/index.js";
 
 export interface AgentInfo {
@@ -234,11 +235,11 @@ export class AgentOrchestrator {
       await this.worktreeManager.create(worktreePath, "HEAD", { detach: true });
       log.log(`[orchestrator] Created worktree at ${worktreePath} for task ${task.taskId}`);
 
-      // Create session with placeholder system prompt
+      // Create session with implementor system prompt
       const session = await this.sessionManager.createSession({
         taskId: task.taskId,
         workingDirectory: worktreePath,
-        systemPrompt: "todo",
+        systemPrompt: getImplementorSystemPrompt(),
       });
       log.log(`[orchestrator] Created session ${session.sessionId} for task ${task.taskId}`);
       task.setSessionId(session.sessionId);
