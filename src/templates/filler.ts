@@ -5,6 +5,11 @@ let agentPromptTemplate: string | undefined;
 let reviewerPromptTemplate: string | undefined;
 let mergerPromptTemplate: string | undefined;
 
+// System prompt cache
+let implementorSystemPrompt: string | undefined;
+let reviewerSystemPrompt: string | undefined;
+let mergerSystemPrompt: string | undefined;
+
 function getImplementorAgentPromptTemplate(): string {
   if (!agentPromptTemplate) {
     agentPromptTemplate = readFileSync(
@@ -70,4 +75,36 @@ export function fillMergerPromptTemplate(data: MergerPromptData): string {
   return getMergerPromptTemplate()
     .replace(/\{\{taskId\}\}/g, data.taskId || "")
     .replace(/\{\{worktreePath\}\}/g, data.worktreePath);
+}
+
+// System Prompt Retrieval Functions
+
+export function getImplementorSystemPrompt(): string {
+  if (!implementorSystemPrompt) {
+    implementorSystemPrompt = readFileSync(
+      join(process.cwd(), "templates", "system", "implementor-system-prompt.md"),
+      "utf-8"
+    );
+  }
+  return implementorSystemPrompt;
+}
+
+export function getReviewerSystemPrompt(): string {
+  if (!reviewerSystemPrompt) {
+    reviewerSystemPrompt = readFileSync(
+      join(process.cwd(), "templates", "system", "reviewer-system-prompt.md"),
+      "utf-8"
+    );
+  }
+  return reviewerSystemPrompt;
+}
+
+export function getMergerSystemPrompt(): string {
+  if (!mergerSystemPrompt) {
+    mergerSystemPrompt = readFileSync(
+      join(process.cwd(), "templates", "system", "merger-system-prompt.md"),
+      "utf-8"
+    );
+  }
+  return mergerSystemPrompt;
 }
