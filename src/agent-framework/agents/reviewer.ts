@@ -1,18 +1,21 @@
 /**
- * Merger Agent
+ * Reviewer Agent
  *
- * Handles the merge phase of a task.
- * Merges changes from the worktree back into mainline.
+ * Handles the review phase of a task.
+ * Sends initial prompt to an existing session in a pre-created worktree.
  * Reports back to orchestrator when complete.
- * Worktree is managed by the orchestrator.
+ * Worktree and session are managed by the orchestrator.
  */
 
-import type { AgentSession, SessionManagerInterface } from "../agent-interface/index.js";
-import { fillMergerPromptTemplate } from "../templates/index.js";
-import { log } from "../core/logging/index.js";
+import { type Task as DysonTask } from "dyson-swarm";
+import { type AgentSession } from "./interface/types.js";
+import type { SessionManagerInterface } from "./interface/index.js";
+import { fillReviewerPromptTemplate } from "../../templates/index.js";
+import { log } from "../../core/logging/index.js";
 
-export interface MergerAgentOptions {
+export interface ReviewerAgentOptions {
   taskId: string;
+  dysonTask: DysonTask;
   worktreePath: string;
   session: AgentSession;
   sessionManager: SessionManagerInterface;
@@ -20,7 +23,7 @@ export interface MergerAgentOptions {
   onError: (taskId: string, error: Error) => void;
 }
 
-export interface MergerAgent {
+export interface ReviewerAgent {
   readonly agentId: string;
   readonly taskId: string;
   start(): Promise<void>;
@@ -29,11 +32,14 @@ export interface MergerAgent {
 }
 
 /**
- * MergerAgent handles the merge phase of a task.
+ * ReviewerAgent handles the review phase of a task.
+ * Created per-task and destroyed when review is complete.
+ * Worktree and session are provided by the orchestrator.
  */
-export class MergerAgentImpl implements MergerAgent {
+export class ReviewerAgentImpl implements ReviewerAgent {
   readonly agentId: string;
   readonly taskId: string;
+  private dysonTask: DysonTask;
   private worktreePath: string;
   private session: AgentSession;
   private sessionManager: SessionManagerInterface;
@@ -41,9 +47,10 @@ export class MergerAgentImpl implements MergerAgent {
   private onError: (taskId: string, error: Error) => void;
   private _isRunning = false;
 
-  constructor(options: MergerAgentOptions) {
+  constructor(options: ReviewerAgentOptions) {
     this.taskId = options.taskId;
-    this.agentId = `${options.taskId}-merger`;
+    this.agentId = `${options.taskId}-reviewer`;
+    this.dysonTask = options.dysonTask;
     this.worktreePath = options.worktreePath;
     this.session = options.session;
     this.sessionManager = options.sessionManager;
@@ -52,32 +59,32 @@ export class MergerAgentImpl implements MergerAgent {
   }
 
   /**
-   * Start the merger agent.
-   * Sends initial prompt to begin the merge.
+   * Start the reviewer agent.
+   * Sends initial prompt to begin the review.
    */
   async start(): Promise<void> {
     if (this._isRunning) {
-      log.log(`[merger] Agent ${this.agentId} already running`);
+      log.log(`[reviewer] Agent ${this.agentId} already running`);
       return;
     }
 
     this._isRunning = true;
-    log.log(`[merger] Starting agent ${this.agentId} for task ${this.taskId}`);
+    log.log(`[reviewer] Starting agent ${this.agentId} for task ${this.taskId}`);
 
     try {
       // Send initial prompt
       await this.sendInitialPrompt();
-
-      log.log(`[merger] Agent ${this.agentId} started successfully`);
+      
+      log.log(`[reviewer] Agent ${this.agentId} started successfully`);
     } catch (error) {
-      log.error(`[merger] Failed to start agent ${this.agentId}:`, error);
+      log.error(`[reviewer] Failed to start agent ${this.agentId}:`, error);
       this._isRunning = false;
       this.onError(this.taskId, error instanceof Error ? error : new Error(String(error)));
     }
   }
 
   /**
-   * Stop the merger agent.
+   * Stop the reviewer agent.
    * Note: Session and worktree cleanup are handled by the orchestrator.
    */
   async stop(): Promise<void> {
@@ -85,9 +92,9 @@ export class MergerAgentImpl implements MergerAgent {
       return;
     }
 
-    log.log(`[merger] Stopping agent ${this.agentId}`);
+    log.log(`[reviewer] Stopping agent ${this.agentId}`);
     this._isRunning = false;
-    log.log(`[merger] Agent ${this.agentId} stopped`);
+    log.log(`[reviewer] Agent ${this.agentId} stopped`);
   }
 
   /**
@@ -108,18 +115,19 @@ export class MergerAgentImpl implements MergerAgent {
    * Handle session idle event - called by orchestrator when session becomes idle
    */
   async handleSessionIdle(): Promise<void> {
-    log.log(`[merger] Session ${this.session.sessionId} became idle for task ${this.taskId}`);
-
+    log.log(`[reviewer] Session ${this.session.sessionId} became idle for task ${this.taskId}`);
+    
     this._isRunning = false;
-
+    
     // Notify completion
     this.onComplete(this.taskId, this.session);
   }
 
   private async sendInitialPrompt(): Promise<void> {
     try {
-      const promptMessage = fillMergerPromptTemplate({
-        taskId: this.taskId,
+      const promptMessage = fillReviewerPromptTemplate({
+        taskTitle: this.dysonTask.frontmatter.title || "",
+        taskDescription: this.dysonTask.description || "",
         worktreePath: this.worktreePath,
       });
 
@@ -128,18 +136,19 @@ export class MergerAgentImpl implements MergerAgent {
         promptMessage,
         this.worktreePath
       );
-      log.log(`[merger] Sent initial prompt`);
+      log.log(`[reviewer] Sent initial prompt`);
     } catch (error) {
       throw new Error(
         `Failed to send initial prompt: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }
+
 }
 
 /**
- * Factory function to create a MergerAgent
+ * Factory function to create a ReviewerAgent
  */
-export function createMergerAgent(options: MergerAgentOptions): MergerAgent {
-  return new MergerAgentImpl(options);
+export function createReviewerAgent(options: ReviewerAgentOptions): ReviewerAgent {
+  return new ReviewerAgentImpl(options);
 }

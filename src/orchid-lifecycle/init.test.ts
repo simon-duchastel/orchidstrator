@@ -11,7 +11,7 @@ import {
   initializeOrchid,
   isDirectoryEmpty
 } from './init';
-import { MockGitOperations } from '../git/manager.js';
+import { MockGitOperations } from '../core/git/manager.js';
 
 // Mock all file system operations
 vi.mock('node:fs', () => ({
