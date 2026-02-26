@@ -68,7 +68,7 @@ describe("PiSessionAdapter", () => {
       const session = await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
-        systemPrompt: "test system prompt",
+        systemPrompt: "todo",
       });
 
       expect(session.taskId).toBe("task-1");
@@ -86,7 +86,7 @@ describe("PiSessionAdapter", () => {
       await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
-        systemPrompt: "test system prompt",
+        systemPrompt: "todo",
       });
 
       await expect(
@@ -107,7 +107,7 @@ describe("PiSessionAdapter", () => {
       await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
-        systemPrompt: "test system prompt",
+        systemPrompt: "todo",
       });
 
       expect(mkdirSync).toHaveBeenCalledWith("/test/sessions/task-1", { recursive: true });
@@ -133,7 +133,7 @@ describe("PiSessionAdapter", () => {
       await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
-        systemPrompt: "test system prompt",
+        systemPrompt: "todo",
       });
 
       expect(mockSubscribe).toHaveBeenCalled();
@@ -150,7 +150,7 @@ describe("PiSessionAdapter", () => {
       const createdSession = await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
-        systemPrompt: "test system prompt",
+        systemPrompt: "todo",
       });
 
       const retrievedSession = await adapter.getSession("task-1");
@@ -176,7 +176,7 @@ describe("PiSessionAdapter", () => {
       const session = await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
-        systemPrompt: "test system prompt",
+        systemPrompt: "todo",
       });
       createdSessionId = session.sessionId;
     });
@@ -222,7 +222,7 @@ describe("PiSessionAdapter", () => {
       await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
-        systemPrompt: "test system prompt",
+        systemPrompt: "todo",
       });
 
       // Simulate message_end event
@@ -254,7 +254,7 @@ describe("PiSessionAdapter", () => {
       await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
-        systemPrompt: "test system prompt",
+        systemPrompt: "todo",
       });
 
       // Simulate turn_end event
@@ -285,7 +285,7 @@ describe("PiSessionAdapter", () => {
       await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
-        systemPrompt: "test system prompt",
+        systemPrompt: "todo",
       });
 
       if (eventListener) {
@@ -318,7 +318,7 @@ describe("PiSessionAdapter", () => {
       await adapter.createSession({
         taskId: "task-1",
         workingDirectory: "/test/sessions/task-1",
-        systemPrompt: "test system prompt",
+        systemPrompt: "todo",
       });
 
       if (eventListener) {

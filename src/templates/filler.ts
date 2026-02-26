@@ -71,16 +71,3 @@ export function fillMergerPromptTemplate(data: MergerPromptData): string {
     .replace(/\{\{taskId\}\}/g, data.taskId || "")
     .replace(/\{\{worktreePath\}\}/g, data.worktreePath);
 }
-
-// Raw template getters for system prompts (without variable substitution)
-export function getAgentSystemPrompt(): string {
-  return getAgentPromptTemplate();
-}
-
-export function getReviewerSystemPrompt(): string {
-  return getReviewerPromptTemplate();
-}
-
-export function getMergerSystemPrompt(): string {
-  return getMergerPromptTemplate();
-}
