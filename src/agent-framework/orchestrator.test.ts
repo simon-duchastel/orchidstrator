@@ -206,7 +206,7 @@ describe("AgentOrchestrator", () => {
       orchestrator.start();
       await vi.runAllTimersAsync();
 
-      // Should only create one worktree (session is managed by agent)
+      // Should only create one worktree
       expect(mocks.mockWorktreeCreate).toHaveBeenCalledTimes(1);
     });
 
@@ -292,59 +292,4 @@ describe("AgentOrchestrator", () => {
     });
   });
 
-  describe("agent session management", () => {
-    it("should allow agents to create their own sessions with system prompts", async () => {
-      const mockSession = {
-        sessionId: "session-1",
-        taskId: "task-1",
-        workingDirectory: "/test/worktrees/task-1",
-        createdAt: new Date(),
-        status: "running" as const,
-      };
-      mocks.mockSessionCreate.mockResolvedValue(mockSession);
-      mocks.mockWorktreeCreate.mockResolvedValue(true);
-
-      const streamIterator = (async function* () {
-        yield [{ id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" }];
-      })();
-      mocks.mockListTaskStream.mockReturnValue(streamIterator);
-
-      orchestrator.start();
-      await vi.runAllTimersAsync();
-
-      // Session creation is now handled by the agent, not the orchestrator
-      // The agent will call createSession internally when start() is called
-      expect(mocks.mockSessionCreate).toHaveBeenCalledWith({
-        taskId: "task-1",
-        workingDirectory: "/test/worktrees/task-1",
-        systemPrompt: expect.any(String),
-      });
-    });
-
-    it("should create separate sessions for each agent type", async () => {
-      // This test verifies that different agent types can create their own sessions
-      // Each with their own system prompts (implementor, reviewer, merger)
-      const mockSession = {
-        sessionId: "session-1",
-        taskId: "task-1",
-        workingDirectory: "/test/worktrees/task-1",
-        createdAt: new Date(),
-        status: "running" as const,
-      };
-      mocks.mockSessionCreate.mockResolvedValue(mockSession);
-      mocks.mockWorktreeCreate.mockResolvedValue(true);
-
-      const streamIterator = (async function* () {
-        yield [{ id: "task-1", frontmatter: { title: "Test" }, description: "", status: "open" }];
-      })();
-      mocks.mockListTaskStream.mockReturnValue(streamIterator);
-
-      orchestrator.start();
-      await vi.runAllTimersAsync();
-
-      // Each agent type (implementor, reviewer, merger) manages its own session
-      // Orchestrator no longer manages sessions - it just manages worktrees and agents
-      expect(mocks.mockWorktreeCreate).toHaveBeenCalledTimes(1);
-    });
-  });
 });

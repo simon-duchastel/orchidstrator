@@ -217,7 +217,7 @@ export class AgentOrchestrator {
 
   /**
    * Create an implementor agent for a task.
-   * Creates worktree, then creates the implementor agent which manages its own session.
+   * Creates worktree, then creates the implementor agent.
    */
   private async createImplementor(task: Task): Promise<void> {
     const agentId = `${task.taskId}-implementor`;
@@ -232,7 +232,6 @@ export class AgentOrchestrator {
       await this.worktreeManager.create(worktreePath, "HEAD", { detach: true });
       log.log(`[orchestrator] Created worktree at ${worktreePath} for task ${task.taskId}`);
 
-      // Create implementor agent - agent manages its own session
       const implementor = createImplementorAgent({
         taskId: task.taskId,
         dysonTask: task.dysonTask,
