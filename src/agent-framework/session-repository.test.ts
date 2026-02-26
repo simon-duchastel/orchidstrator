@@ -1,7 +1,14 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdirSync, rmdirSync, existsSync, readdirSync, unlinkSync } from "node:fs";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { mkdirSync, existsSync, readdirSync, type PathLike } from "node:fs";
 import { join } from "node:path";
 import { SessionRepository, AgentType, createSessionRepository } from "./session-repository.js";
+
+// Mock the fs module
+vi.mock("node:fs", () => ({
+  existsSync: vi.fn(),
+  mkdirSync: vi.fn(),
+  readdirSync: vi.fn(),
+}));
 
 const TEST_DIR = "/tmp/orchid-session-repo-test";
 
@@ -9,64 +16,40 @@ describe("SessionRepository", () => {
   let repository: SessionRepository;
 
   beforeEach(() => {
-    // Clean up test directory
-    if (existsSync(TEST_DIR)) {
-      const files = readdirSync(TEST_DIR);
-      for (const file of files) {
-        const filePath = join(TEST_DIR, file);
-        if (existsSync(filePath)) {
-          const stats = readdirSync(filePath);
-          for (const innerFile of stats) {
-            unlinkSync(join(filePath, innerFile));
-          }
-          rmdirSync(filePath);
-        }
-      }
-      rmdirSync(TEST_DIR);
-    }
-
-    repository = createSessionRepository({ sessionsDir: TEST_DIR });
-  });
-
-  afterEach(() => {
-    // Clean up test directory
-    if (existsSync(TEST_DIR)) {
-      const files = readdirSync(TEST_DIR);
-      for (const file of files) {
-        const filePath = join(TEST_DIR, file);
-        if (existsSync(filePath)) {
-          const innerFiles = readdirSync(filePath);
-          for (const innerFile of innerFiles) {
-            unlinkSync(join(filePath, innerFile));
-          }
-          rmdirSync(filePath);
-        }
-      }
-      rmdirSync(TEST_DIR);
-    }
+    vi.clearAllMocks();
+    
+    // Default mock implementations
+    vi.mocked(existsSync).mockReturnValue(false);
+    vi.mocked(readdirSync).mockReturnValue([] as unknown as ReturnType<typeof readdirSync>);
+    vi.mocked(mkdirSync).mockImplementation(() => undefined);
   });
 
   describe("constructor", () => {
     it("should create sessions directory if it does not exist", () => {
-      const testDir = "/tmp/orchid-session-repo-new";
+      vi.mocked(existsSync).mockReturnValueOnce(false);
       
-      if (existsSync(testDir)) {
-        rmdirSync(testDir);
-      }
+      createSessionRepository({ sessionsDir: TEST_DIR });
+      
+      expect(mkdirSync).toHaveBeenCalledWith(TEST_DIR, { recursive: true });
+    });
 
-      expect(existsSync(testDir)).toBe(false);
+    it("should not create sessions directory if it already exists", () => {
+      vi.mocked(existsSync).mockReturnValue(true);
       
-      createSessionRepository({ sessionsDir: testDir });
+      createSessionRepository({ sessionsDir: TEST_DIR });
       
-      expect(existsSync(testDir)).toBe(true);
-      
-      // Cleanup
-      rmdirSync(testDir);
+      expect(mkdirSync).not.toHaveBeenCalled();
     });
   });
 
   describe("getOrCreateSession", () => {
+    beforeEach(() => {
+      repository = createSessionRepository({ sessionsDir: TEST_DIR });
+    });
+
     it("should create a new session when none exists", () => {
+      vi.mocked(existsSync).mockReturnValue(false);
+      
       const session = repository.getOrCreateSession("task-1", AgentType.IMPLEMENTOR);
 
       expect(session.taskId).toBe("task-1");
@@ -77,6 +60,15 @@ describe("SessionRepository", () => {
     });
 
     it("should create different sessions for different agent types", () => {
+      vi.mocked(existsSync).mockImplementation((path: PathLike) => {
+        // Return true for task directory after first call
+        if (typeof path === 'string' && path.includes("task-1")) {
+          return true;
+        }
+        return false;
+      });
+      vi.mocked(readdirSync).mockReturnValue([] as unknown as ReturnType<typeof readdirSync>);
+
       const implementorSession = repository.getOrCreateSession("task-1", AgentType.IMPLEMENTOR);
       const reviewerSession = repository.getOrCreateSession("task-1", AgentType.REVIEWER);
       const mergerSession = repository.getOrCreateSession("task-1", AgentType.MERGER);
@@ -92,14 +84,8 @@ describe("SessionRepository", () => {
     });
 
     it("should return existing session if one exists", () => {
-      // Create the session file
-      const taskDir = join(TEST_DIR, "task-1");
-      mkdirSync(taskDir, { recursive: true });
-      const sessionFile = join(taskDir, "implementor-1.json");
-      
-      // Create an empty file to simulate existing session
-      const fd = require("node:fs").openSync(sessionFile, "w");
-      require("node:fs").closeSync(fd);
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockReturnValue(["implementor-1.json"] as unknown as ReturnType<typeof readdirSync>);
 
       const session = repository.getOrCreateSession("task-1", AgentType.IMPLEMENTOR);
 
@@ -109,16 +95,12 @@ describe("SessionRepository", () => {
     });
 
     it("should return the latest version if multiple exist", () => {
-      // Create multiple session files
-      const taskDir = join(TEST_DIR, "task-1");
-      mkdirSync(taskDir, { recursive: true });
-      
-      // Create session files for different versions
-      for (const version of [1, 2, 3]) {
-        const sessionFile = join(taskDir, `implementor-${version}.json`);
-        const fd = require("node:fs").openSync(sessionFile, "w");
-        require("node:fs").closeSync(fd);
-      }
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockReturnValue([
+        "implementor-1.json",
+        "implementor-2.json",
+        "implementor-3.json",
+      ] as unknown as ReturnType<typeof readdirSync>);
 
       const session = repository.getOrCreateSession("task-1", AgentType.IMPLEMENTOR);
 
@@ -126,6 +108,8 @@ describe("SessionRepository", () => {
     });
 
     it("should handle different tasks independently", () => {
+      vi.mocked(existsSync).mockReturnValue(false);
+
       const session1 = repository.getOrCreateSession("task-1", AgentType.IMPLEMENTOR);
       const session2 = repository.getOrCreateSession("task-2", AgentType.IMPLEMENTOR);
 
@@ -133,9 +117,26 @@ describe("SessionRepository", () => {
       expect(session2.taskId).toBe("task-2");
       expect(session1.filePath).not.toBe(session2.filePath);
     });
+
+    it("should handle versions above 9 correctly", () => {
+      vi.mocked(existsSync).mockReturnValue(true);
+      vi.mocked(readdirSync).mockReturnValue([
+        "implementor-1.json",
+        "implementor-10.json",
+        "implementor-2.json",
+      ] as unknown as ReturnType<typeof readdirSync>);
+
+      const session = repository.getOrCreateSession("task-1", AgentType.IMPLEMENTOR);
+
+      expect(session.version).toBe(10);
+    });
   });
 
   describe("getTaskSessionsDir", () => {
+    beforeEach(() => {
+      repository = createSessionRepository({ sessionsDir: TEST_DIR });
+    });
+
     it("should return the correct path for task sessions", () => {
       const path = repository.getTaskSessionsDir("task-1");
       expect(path).toBe(join(TEST_DIR, "task-1"));
@@ -143,7 +144,13 @@ describe("SessionRepository", () => {
   });
 
   describe("Session", () => {
+    beforeEach(() => {
+      repository = createSessionRepository({ sessionsDir: TEST_DIR });
+    });
+
     it("should expose correct properties", () => {
+      vi.mocked(existsSync).mockReturnValue(false);
+      
       const session = repository.getOrCreateSession("task-1", AgentType.REVIEWER);
 
       expect(session.taskId).toBe("task-1");
