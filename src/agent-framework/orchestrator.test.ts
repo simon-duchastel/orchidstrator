@@ -67,6 +67,21 @@ vi.mock("../core/git/worktrees/index.js", () => ({
 
 vi.mock("../config/paths.js", () => ({
   getWorktreesDir: () => "/test/worktrees",
+  getOrchidDir: () => "/test/.orchid",
+}));
+
+vi.mock("./session-repository.js", () => ({
+  AgentType: {
+    IMPLEMENTOR: "implementor",
+    REVIEWER: "reviewer",
+    MERGER: "merger",
+  },
+  createSessionRepository: () => ({
+    getOrCreateSession: vi.fn((taskId: string, agentType: string) => ({
+      filename: `${agentType}-1`,
+      filePath: `/test/.orchid/sessions/${taskId}/${agentType}-1.json`,
+    })),
+  }),
 }));
 
 describe("AgentOrchestrator", () => {

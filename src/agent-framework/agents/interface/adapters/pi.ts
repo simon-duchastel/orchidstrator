@@ -80,7 +80,7 @@ export class PiSessionAdapter implements AgentInstanceManager {
 
       // Use file-backed session manager if session file path is provided, otherwise use in-memory
       const sessionManager = options.sessionFilePath
-        ? SessionManager.fileBacked(options.sessionFilePath)
+        ? SessionManager.open(options.sessionFilePath)
         : SessionManager.inMemory();
 
       const result: CreateAgentSessionResult = await createAgentSession({

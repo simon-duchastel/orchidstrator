@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createImplementorAgent } from "./implementor.js";
+import { AgentType } from "../session-repository.js";
 
 const mocks = vi.hoisted(() => {
   const mockSessionCreate = vi.fn();
@@ -7,6 +8,7 @@ const mocks = vi.hoisted(() => {
   const mockSendMessage = vi.fn();
   const mockAssignTask = vi.fn();
   const mockUnassignTask = vi.fn();
+  const mockGetOrCreateSession = vi.fn();
 
   class MockAgentInstanceManager {
     createAgentInstance = mockSessionCreate;
@@ -19,14 +21,20 @@ const mocks = vi.hoisted(() => {
     unassignTask = mockUnassignTask;
   }
 
+  class MockSessionRepository {
+    getOrCreateSession = mockGetOrCreateSession;
+  }
+
   return {
     mockSessionCreate,
     mockSessionRemove,
     mockSendMessage,
     mockAssignTask,
     mockUnassignTask,
+    mockGetOrCreateSession,
     MockAgentInstanceManager,
     MockTaskManager,
+    MockSessionRepository,
   };
 });
 
@@ -38,11 +46,17 @@ vi.mock("../../templates/index.js", () => ({
 describe("ImplementorAgent", () => {
   let mockSessionManager: any;
   let mockTaskManager: any;
+  let mockSessionRepository: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockSessionManager = new mocks.MockAgentInstanceManager();
     mockTaskManager = new mocks.MockTaskManager();
+    mockSessionRepository = new mocks.MockSessionRepository();
+    mocks.mockGetOrCreateSession.mockReturnValue({
+      filename: "implementor-1",
+      filePath: "/test/.orchid/sessions/task-1/implementor-1.json",
+    });
   });
 
   afterEach(() => {
@@ -72,6 +86,7 @@ describe("ImplementorAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockSessionManager,
+        sessionRepository: mockSessionRepository,
         taskManager: mockTaskManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
@@ -79,10 +94,12 @@ describe("ImplementorAgent", () => {
 
       await agent.start();
 
+      expect(mocks.mockGetOrCreateSession).toHaveBeenCalledWith("task-1", AgentType.IMPLEMENTOR);
       expect(mocks.mockSessionCreate).toHaveBeenCalledWith({
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         systemPrompt: "implementor system prompt",
+        sessionFilePath: "/test/.orchid/sessions/task-1/implementor-1.json",
       });
     });
 
@@ -108,6 +125,7 @@ describe("ImplementorAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockSessionManager,
+        sessionRepository: mockSessionRepository,
         taskManager: mockTaskManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
@@ -140,6 +158,7 @@ describe("ImplementorAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockSessionManager,
+        sessionRepository: mockSessionRepository,
         taskManager: mockTaskManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
@@ -168,6 +187,7 @@ describe("ImplementorAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockSessionManager,
+        sessionRepository: mockSessionRepository,
         taskManager: mockTaskManager,
         onComplete: vi.fn(),
         onError: onErrorMock,
@@ -204,6 +224,7 @@ describe("ImplementorAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockSessionManager,
+        sessionRepository: mockSessionRepository,
         taskManager: mockTaskManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
@@ -229,6 +250,7 @@ describe("ImplementorAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockSessionManager,
+        sessionRepository: mockSessionRepository,
         taskManager: mockTaskManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
@@ -263,6 +285,7 @@ describe("ImplementorAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockSessionManager,
+        sessionRepository: mockSessionRepository,
         taskManager: mockTaskManager,
         onComplete: onCompleteMock,
         onError: vi.fn(),
@@ -290,6 +313,7 @@ describe("ImplementorAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockSessionManager,
+        sessionRepository: mockSessionRepository,
         taskManager: mockTaskManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
@@ -320,6 +344,7 @@ describe("ImplementorAgent", () => {
         },
         worktreePath: "/test/worktrees/task-1",
         agentInstanceManager: mockSessionManager,
+        sessionRepository: mockSessionRepository,
         taskManager: mockTaskManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
