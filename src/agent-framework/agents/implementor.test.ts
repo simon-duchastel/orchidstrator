@@ -8,9 +8,9 @@ const mocks = vi.hoisted(() => {
   const mockAssignTask = vi.fn();
   const mockUnassignTask = vi.fn();
 
-  class MockSessionManager {
-    createSession = mockSessionCreate;
-    removeSession = mockSessionRemove;
+  class MockAgentInstanceManager {
+    createAgentInstance = mockSessionCreate;
+    removeAgentInstance = mockSessionRemove;
     sendMessage = mockSendMessage;
   }
 
@@ -25,7 +25,7 @@ const mocks = vi.hoisted(() => {
     mockSendMessage,
     mockAssignTask,
     mockUnassignTask,
-    MockSessionManager,
+    MockAgentInstanceManager,
     MockTaskManager,
   };
 });
@@ -41,7 +41,7 @@ describe("ImplementorAgent", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSessionManager = new mocks.MockSessionManager();
+    mockSessionManager = new mocks.MockAgentInstanceManager();
     mockTaskManager = new mocks.MockTaskManager();
   });
 
@@ -52,7 +52,7 @@ describe("ImplementorAgent", () => {
   describe("start", () => {
     it("should create session with implementor system prompt", async () => {
       const mockSession = {
-        sessionId: "session-1",
+        instanceId: "session-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
@@ -71,7 +71,7 @@ describe("ImplementorAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockSessionManager,
         taskManager: mockTaskManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
@@ -88,7 +88,7 @@ describe("ImplementorAgent", () => {
 
     it("should assign task in dyson-swarm", async () => {
       const mockSession = {
-        sessionId: "session-1",
+        instanceId: "session-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
@@ -107,7 +107,7 @@ describe("ImplementorAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockSessionManager,
         taskManager: mockTaskManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
@@ -120,7 +120,7 @@ describe("ImplementorAgent", () => {
 
     it("should send initial prompt after creating session", async () => {
       const mockSession = {
-        sessionId: "session-1",
+        instanceId: "session-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
@@ -139,7 +139,7 @@ describe("ImplementorAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockSessionManager,
         taskManager: mockTaskManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
@@ -167,7 +167,7 @@ describe("ImplementorAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockSessionManager,
         taskManager: mockTaskManager,
         onComplete: vi.fn(),
         onError: onErrorMock,
@@ -183,7 +183,7 @@ describe("ImplementorAgent", () => {
   describe("stop", () => {
     it("should remove session when stopped", async () => {
       const mockSession = {
-        sessionId: "session-1",
+        instanceId: "session-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
@@ -203,7 +203,7 @@ describe("ImplementorAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockSessionManager,
         taskManager: mockTaskManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
@@ -228,7 +228,7 @@ describe("ImplementorAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockSessionManager,
         taskManager: mockTaskManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
@@ -238,10 +238,10 @@ describe("ImplementorAgent", () => {
     });
   });
 
-  describe("handleSessionIdle", () => {
+  describe("handleAgentInstanceIdle", () => {
     it("should remove session and call onComplete", async () => {
       const mockSession = {
-        sessionId: "session-1",
+        instanceId: "session-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
@@ -262,7 +262,7 @@ describe("ImplementorAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockSessionManager,
         taskManager: mockTaskManager,
         onComplete: onCompleteMock,
         onError: vi.fn(),
@@ -270,7 +270,7 @@ describe("ImplementorAgent", () => {
 
       await agent.start();
 
-      await (agent as any).handleSessionIdle();
+      await (agent as any).handleAgentInstanceIdle();
 
       expect(mocks.mockSessionRemove).toHaveBeenCalledWith("task-1");
       expect(onCompleteMock).toHaveBeenCalledWith("task-1");
@@ -289,7 +289,7 @@ describe("ImplementorAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockSessionManager,
         taskManager: mockTaskManager,
         onComplete: vi.fn(),
         onError: vi.fn(),
@@ -300,7 +300,7 @@ describe("ImplementorAgent", () => {
 
     it("should return true after start", async () => {
       const mockSession = {
-        sessionId: "session-1",
+        instanceId: "session-1",
         taskId: "task-1",
         workingDirectory: "/test/worktrees/task-1",
         createdAt: new Date(),
@@ -319,7 +319,7 @@ describe("ImplementorAgent", () => {
           status: "open",
         },
         worktreePath: "/test/worktrees/task-1",
-        sessionManager: mockSessionManager,
+        agentInstanceManager: mockSessionManager,
         taskManager: mockTaskManager,
         onComplete: vi.fn(),
         onError: vi.fn(),

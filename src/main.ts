@@ -29,7 +29,7 @@ async function main() {
   try {
     // Create Pi session manager
     const sessionManager = new PiSessionAdapter({
-      sessionsDir: worktreesDir,
+      instancesDir: worktreesDir,
     });
 
     log.log("[orchid] Pi session manager initialized");
