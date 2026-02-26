@@ -8,7 +8,7 @@ let mergerPromptTemplate: string | undefined;
 function getAgentPromptTemplate(): string {
   if (!agentPromptTemplate) {
     agentPromptTemplate = readFileSync(
-      join(process.cwd(), "templates", "agent-prompt.md"),
+      join(process.cwd(), "templates", "implementor-agent-prompt.md"),
       "utf-8"
     );
   }
@@ -18,7 +18,7 @@ function getAgentPromptTemplate(): string {
 function getReviewerPromptTemplate(): string {
   if (!reviewerPromptTemplate) {
     reviewerPromptTemplate = readFileSync(
-      join(process.cwd(), "templates", "reviewer-prompt.md"),
+      join(process.cwd(), "templates", "review-agent-prompt.md"),
       "utf-8"
     );
   }
